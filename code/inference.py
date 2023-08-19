@@ -35,9 +35,11 @@ logger.setLevel(logging.DEBUG)
 def model_fn(model_dir):
     device = get_device()
     logger.info(">>> Device is '%s'.." % device)
-    model = torch.load(model_dir + '/best.pt', map_location=torch.device(device))
-    print(type(model))
+    model = attempt_load(model_dir + '/best.pt', map_location=torch.device(device))
+    logger.info(">>> Model Type!..")
+    logger.info(type(model))
     logger.info(">>> Model loaded!..")
+    logger.info(model)
     return model
 
 def transform_fn(model, request_body, content_type, accept):
