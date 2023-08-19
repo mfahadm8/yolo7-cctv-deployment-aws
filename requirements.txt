@@ -1,0 +1,4 @@
+opencv-python-headless==4.5.4.60
+requests==2.26.0
+boto3 
+sagemaker
