@@ -17,7 +17,7 @@ import tempfile
 import cv2
 import torch
 import torchvision.transforms as transforms
-
+import traceback
 # This code will be loaded on each worker separately..
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -33,26 +33,30 @@ def model_fn(model_dir):
     return model
 
 def transform_fn(model, request_body, content_type, accept):
-    interval = int(os.environ.get('FRAME_INTERVAL', 30))
-    frame_width = int(os.environ.get('FRAME_WIDTH', 1024))
-    frame_height = int(os.environ.get('FRAME_HEIGHT', 1024))
-    batch_size = int(os.environ.get('BATCH_SIZE', 24))
+    try:
+        interval = int(os.environ.get('FRAME_INTERVAL', 30))
+        frame_width = int(os.environ.get('FRAME_WIDTH', 1024))
+        frame_height = int(os.environ.get('FRAME_HEIGHT', 1024))
+        batch_size = int(os.environ.get('BATCH_SIZE', 12))
 
-    f = io.BytesIO(request_body)
-    tfile = tempfile.NamedTemporaryFile(delete=False)
-    tfile.write(f.read())
+        f = io.BytesIO(request_body)
+        tfile = tempfile.NamedTemporaryFile(delete=False)
+        tfile.write(f.read())
 
-    all_predictions = []
+        all_predictions = []
 
-    for batch_frames in batch_generator(tfile, frame_width, frame_height, interval, batch_size):
-        batch_inputs = preprocess(batch_frames)  # returns 4D tensor
-        batch_outputs = predict(batch_inputs, model)
-        logger.info(">>> Length of batch predictions: %d" % len(batch_outputs))
-        batch_predictions = postprocess(batch_outputs)
-        all_predictions.extend(batch_predictions)
-    
-    logger.info(">>> Length of final predictions: %d" % len(all_predictions))
-    return json.dumps(all_predictions)
+        for batch_frames in batch_generator(tfile, frame_width, frame_height, interval, batch_size):
+            batch_inputs = preprocess(batch_frames)  # returns 4D tensor
+            batch_outputs = predict(batch_inputs, model)
+            logger.info(">>> Length of batch predictions: %d" % len(batch_outputs))
+            batch_predictions = postprocess(batch_outputs)
+            all_predictions.extend(batch_predictions)
+        
+        logger.info(">>> Length of final predictions: %d" % len(all_predictions))
+        return json.dumps(all_predictions)
+    except Exception as e:
+        logger.error(traceback.format_exc())
+        return json.dumps({"Error":traceback.format_exc()})
 
 def preprocess(inputs, preprocessor=transforms.ToTensor()):
     outputs = torch.stack([preprocessor(frame) for frame in inputs])
@@ -73,6 +77,7 @@ def predict(inputs, model):
 def postprocess(inputs):
     outputs = []
     for inp in inputs:
+        logger.info("Postprocessing"+str(inp))
         outputs.append({
             'boxes': inp['boxes'].detach().cpu().numpy().tolist(),
             'labels': inp['labels'].detach().cpu().numpy().tolist(),
