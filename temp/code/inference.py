@@ -28,13 +28,15 @@ from utils.general import check_img_size, check_requirements, check_imshow, non_
 from utils.torch_utils import time_synchronized, TracedModel
 from utils.plots import plot_one_box
 from tracker.byte_tracker import BYTETracker
-
+stride = None
+imgsz=1024
 resource = boto3.resource('s3')
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
 def model_fn(model_dir):
+    global stride
     device = get_device()
     logger.info(">>> Device is '%s'.." % device)
     model = attempt_load(model_dir + '/best.pt', map_location=torch.device(device))
@@ -42,6 +44,8 @@ def model_fn(model_dir):
     logger.info(type(model))
     logger.info(">>> Model loaded!..")
     logger.info(model)
+    stride = int(model.stride.max())
+    model = TracedModel(model, device, imgsz)
     return model
 
 def transform_fn(model, request_body, content_type, accept):
@@ -63,79 +67,16 @@ def transform_fn(model, request_body, content_type, accept):
         my_bucket = resource.Bucket(bucket_name)
         my_bucket.download_file(key, local_filename)
 
-        detect(local_filename,model,frame_height)
-        all_predictions = []
-        # for batch_frames in batch_generator(tfile, frame_width, frame_height, interval, batch_size):
-            # batch_inputs = preprocess(batch_frames)  # returns 4D tensor
-            # batch_outputs = predict(batch_inputs, model)
-            # logger.info(">>> Length of batch predictions: %d" % len(batch_outputs))
-            # batch_predictions = postprocess(batch_outputs)
-            # all_predictions.extend(batch_predictions)
+        ouput_path= detect(local_filename,model,frame_height)
+        return json.dumps({"output_path":""})
 
-        # logger.info(">>> Length of final predictions: %d" % len(all_predictions))
-        # return json.dumps(all_predictions)
     except Exception as e:
         logger.error(traceback.format_exc())
         return json.dumps({"Error":traceback.format_exc()})
 
-def preprocess(inputs, preprocessor=transforms.ToTensor()):
-    outputs = torch.stack([preprocessor(frame) for frame in inputs])
-    return outputs
-    
-def predict(inputs, model):
-    logger.info(">>> Invoking model!..")
-
-    with torch.no_grad():
-        device = get_device()
-        model = model.to(device)
-        input_data = inputs.to(device)
-        model.eval()
-        outputs = model(input_data)
-
-    return outputs
-
-def postprocess(inputs):
-    outputs = []
-    for inp in inputs:
-        logger.info("Postprocessing"+str(inp))
-        outputs.append({
-            'boxes': inp['boxes'].detach().cpu().numpy().tolist(),
-            'labels': inp['labels'].detach().cpu().numpy().tolist(),
-            'scores': inp['scores'].detach().cpu().numpy().tolist()
-        })
-    return outputs
-
 def get_device():
     device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
     return device
-
-def batch_generator(tfile, frame_width, frame_height, interval, batch_size):
-    cap = cv2.VideoCapture(tfile.name)
-    frame_index = 0
-    frame_buffer = []
-
-    while cap.isOpened():
-
-        success, frame = cap.read()
-
-        if not success:
-            cap.release()
-            if frame_buffer:
-                yield frame_buffer
-            return
-
-        if frame_index % interval == 0:
-            frame_resized = cv2.resize(frame, (frame_width, frame_height), interpolation=cv2.INTER_AREA)
-            frame_buffer.append(frame_resized)
-
-        if len(frame_buffer) == batch_size:
-            yield frame_buffer
-            frame_buffer.clear()
-
-        frame_index += 1
-    else:
-        raise Exception("Failed to open video '%s'!.." % tfile.name)
-
 
 def draw_boxes(img, bbox, identities=None, categories=None, names=None, save_with_object_id=False, path=None,offset=(0, 0)):
     for i, box in enumerate(bbox):
@@ -168,7 +109,14 @@ def draw_boxes(img, bbox, identities=None, categories=None, names=None, save_wit
 
 
 def detect(video_file,model,imgsz):
-    augment=False
+    global stride
+    augment
+    agnostic_nms
+    classes
+    iou_thres
+    conf_thres
+    save_conf
+    
     save_img=True
 
     save_with_object_id=True
@@ -199,11 +147,9 @@ def detect(video_file,model,imgsz):
         rand_color_list.append(rand_color)
     #......................................
    
-    stride = int(model.stride.max())  # model stride
-    # imgsz = check_img_size(imgsz, s=stride)  # check img_size
+    imgsz = check_img_size(imgsz, s=stride)  # check img_size
 
     device = get_device()
-    model = TracedModel(model, device, imgsz)
 
     # Set Dataloader
     vid_path, vid_writer = None, None
@@ -276,7 +222,7 @@ def detect(video_file,model,imgsz):
                         with open(txt_path + '.txt', 'a') as f:
                             f.write(('%g ' * len(line)).rstrip() % line + '\n')
 
-                    if save_img or view_img:  # Add bbox to image
+                    if save_img:
                         label = f'{names[int(cls)]} {conf:.2f}'
                         plot_one_box(xyxy, im0, label=label, color=colors[int(cls)], line_thickness=1)
                     
