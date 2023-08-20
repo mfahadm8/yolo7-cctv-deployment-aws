@@ -12,7 +12,7 @@ import io
 import json
 import logging
 import tempfile
-
+import boto3
 import cv2
 import torch
 import torchvision.transforms as transforms
@@ -22,18 +22,12 @@ import traceback
 from numpy import random
 import numpy as np
 from random import randint
-from utils.datasets import LoadStreams, LoadImages
-from utils.general import check_img_size, check_requirements, \
-                check_imshow, non_max_suppression, apply_classifier, \
-                scale_coords, xyxy2xywh, strip_optimizer, set_logging, \
-                increment_path
-from utils.plots import plot_one_box
-from utils.torch_utils import select_device, load_classifier, \
-                time_synchronized, TracedModel
+from utils.datasets import LoadImages
+from utils.general import check_img_size,non_max_suppression, scale_coords
+from utils.torch_utils import time_synchronized, TracedModel
 
-#For SORT tracking
-import skimage
-from sort import *
+from tracker.sort import Sort
+client = boto3.client('s3')
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -54,11 +48,18 @@ def transform_fn(model, request_body, content_type, accept):
         frame_width = int(os.environ.get('FRAME_WIDTH', 1024))
         frame_height = int(os.environ.get('FRAME_HEIGHT', 1024))
         batch_size = int(os.environ.get('BATCH_SIZE', 12))
+        s3_path_without_prefix = request_body["s3_path"][len("s3://"):]
+        # Split the path into bucket name and key
+        bucket_name, key = s3_path_without_prefix.split('/', 1)
+        base_filename = os.path.basename(key)
+        # Create a temporary file in the system's temporary directory
+        temp_dir = tempfile.gettempdir()
+        local_destination = os.path.join(temp_dir, base_filename)
 
-        f = io.BytesIO(request_body)
-        tfile = tempfile.NamedTemporaryFile(delete=False)
-        tfile.write(f.read())
-        detect(tfile,model,frame_height)
+        # Download the S3 file
+        client.download_file(bucket_name, key, local_destination)
+
+        detect(local_destination,model,frame_height)
         all_predictions = []
         # for batch_frames in batch_generator(tfile, frame_width, frame_height, interval, batch_size):
             # batch_inputs = preprocess(batch_frames)  # returns 4D tensor
@@ -162,7 +163,7 @@ def draw_boxes(img, bbox, identities=None, categories=None, names=None, save_wit
 
 
 
-def detect(video_file,model,img_size):
+def detect(video_file,model,imgsz):
     augment=False
     save_img=True
     save_dir="/tmp/"
@@ -191,10 +192,10 @@ def detect(video_file,model,img_size):
     #......................................
    
     stride = int(model.stride.max())  # model stride
-    imgsz = check_img_size(imgsz, s=stride)  # check img_size
+    # imgsz = check_img_size(imgsz, s=stride)  # check img_size
 
     device = get_device()
-    model = TracedModel(model, device, img_size)
+    model = TracedModel(model, device, imgsz)
 
     # Set Dataloader
     vid_path, vid_writer = None, None
@@ -272,7 +273,7 @@ def detect(video_file,model,img_size):
 
                 #loop over tracks
                 for track in tracks:
-                        [cv2.line(im0, (int(track.centroidarr[i][0]),
+                    [cv2.line(im0, (int(track.centroidarr[i][0]),
                                     int(track.centroidarr[i][1])), 
                                     (int(track.centroidarr[i+1][0]),
                                     int(track.centroidarr[i+1][1])),
@@ -331,3 +332,9 @@ def detect(video_file,model,img_size):
 
     print(f'Done. ({time.time() - t0:.3f}s)')
 
+
+if __name__ == "__main__":
+    model=model_fn("/home/ubuntu/yolo7-cctv-deployment-aws/temp")
+    feed_data={"s3_path":"lightsketch-models-188775091215/models/20200616_VB_trim.mp4"}
+    transform_fn(model,feed_data,"application/video","")
+    
