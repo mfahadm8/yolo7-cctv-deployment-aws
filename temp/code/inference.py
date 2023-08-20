@@ -23,11 +23,11 @@ from numpy import random
 import numpy as np
 from random import randint
 from utils.datasets import LoadImages
-from utils.general import check_img_size,non_max_suppression, scale_coords
+from utils.general import check_img_size,non_max_suppression, scale_coords,increment_path
 from utils.torch_utils import time_synchronized, TracedModel
 
 from tracker.sort import Sort
-client = boto3.client('s3')
+resource = boto3.resource('s3')
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -54,12 +54,14 @@ def transform_fn(model, request_body, content_type, accept):
         base_filename = os.path.basename(key)
         # Create a temporary file in the system's temporary directory
         temp_dir = tempfile.gettempdir()
-        local_destination = os.path.join(temp_dir, base_filename)
+        local_filename = os.path.join(temp_dir, base_filename)
 
         # Download the S3 file
-        client.download_file(bucket_name, key, local_destination)
 
-        detect(local_destination,model,frame_height)
+        my_bucket = resource.Bucket(bucket_name)
+        my_bucket.download_file(key, local_filename)
+
+        detect(local_filename,model,frame_height)
         all_predictions = []
         # for batch_frames in batch_generator(tfile, frame_width, frame_height, interval, batch_size):
             # batch_inputs = preprocess(batch_frames)  # returns 4D tensor
@@ -166,7 +168,7 @@ def draw_boxes(img, bbox, identities=None, categories=None, names=None, save_wit
 def detect(video_file,model,imgsz):
     augment=False
     save_img=True
-    save_dir="/tmp/"
+
     save_with_object_id=True
     save_txt=True
     save_bbox_dim=True
@@ -178,7 +180,9 @@ def detect(video_file,model,imgsz):
                        min_hits=sort_min_hits,
                        iou_threshold=sort_iou_thresh)
     #......................... 
-    
+    save_dir = Path(increment_path(Path("runs/detect") / "object_detection", exist_ok=True))  # increment run
+    (save_dir / 'labels' if save_txt else save_dir).mkdir(parents=True, exist_ok=True)  # make dir
+
     
     #........Rand Color for every trk.......
     rand_color_list = []
@@ -200,14 +204,14 @@ def detect(video_file,model,imgsz):
     # Set Dataloader
     vid_path, vid_writer = None, None
 
-    dataset = LoadImages(video_file.name, img_size=imgsz, stride=stride)
-    half = device.type != 'cpu'
+    dataset = LoadImages(video_file, img_size=imgsz, stride=stride)
+    half = device!= 'cpu'
     # Get names and colors
     names = model.module.names if hasattr(model, 'module') else model.names
     colors = [[random.randint(0, 255) for _ in range(3)] for _ in names]
 
     # Run inference
-    if device.type != 'cpu':
+    if device != 'cpu':
         model(torch.zeros(1, 3, imgsz, imgsz).to(device).type_as(next(model.parameters())))  # run once
     old_img_w = old_img_h = imgsz
     old_img_b = 1
@@ -223,7 +227,7 @@ def detect(video_file,model,imgsz):
             img = img.unsqueeze(0)
 
         # Warmup
-        if device.type != 'cpu' and (old_img_b != img.shape[0] or old_img_h != img.shape[2] or old_img_w != img.shape[3]):
+        if device != 'cpu' and (old_img_b != img.shape[0] or old_img_h != img.shape[2] or old_img_w != img.shape[3]):
             old_img_b = img.shape[0]
             old_img_h = img.shape[2]
             old_img_w = img.shape[3]
@@ -335,6 +339,6 @@ def detect(video_file,model,imgsz):
 
 if __name__ == "__main__":
     model=model_fn("/home/ubuntu/yolo7-cctv-deployment-aws/temp")
-    feed_data={"s3_path":"lightsketch-models-188775091215/models/20200616_VB_trim.mp4"}
+    feed_data={"s3_path":"s3://lightsketch-models-188775091215/models/20200616_VB_trim.mp4"}
     transform_fn(model,feed_data,"application/video","")
     
