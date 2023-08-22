@@ -110,20 +110,23 @@ def draw_boxes(img, bbox, identities=None, categories=None, names=None, save_wit
 
 def detect(video_file,model,imgsz):
     global stride
-    augment
-    agnostic_nms
-    classes
-    iou_thres
-    conf_thres
-    save_conf
-    
+    augment=False
+    agnostic_nms=False
+    classes=None
+    iou_thres=0.45
+    conf_thres=0.25
+    save_conf=True
+    track_thresh: float = 0.25
+    track_buffer: int = 30
+    match_thresh: float = 0.8
+    mot20=False
     save_img=True
 
     save_with_object_id=True
     save_txt=True
     save_bbox_dim=True
 
-    tracker = BYTETracker(opt) # track_thresh, match_thresh, mot20
+    tracker = BYTETracker(track_thresh,track_buffer,mot20,match_thresh) # track_thresh, match_thresh, mot20
     track_results = {   'Frame': [],
                         'top':[],
                         'left':[],
