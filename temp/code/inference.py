@@ -28,6 +28,7 @@ from utils.general import check_img_size, check_requirements, check_imshow, non_
 from utils.torch_utils import time_synchronized, TracedModel
 from utils.plots import plot_one_box
 from tracker.byte_tracker import BYTETracker
+from tracker.sort import Sort
 stride = None
 imgsz=1024
 resource = boto3.resource('s3')
@@ -109,31 +110,19 @@ def draw_boxes(img, bbox, identities=None, categories=None, names=None, save_wit
 
 
 def detect(video_file,model,imgsz):
-    global stride
     augment=False
-    agnostic_nms=False
-    classes=None
-    iou_thres=0.45
-    conf_thres=0.25
-    save_conf=True
-    track_thresh: float = 0.25
-    track_buffer: int = 30
-    match_thresh: float = 0.8
-    mot20=False
     save_img=True
 
     save_with_object_id=True
     save_txt=True
     save_bbox_dim=True
-
-    tracker = BYTETracker(track_thresh,track_buffer,mot20,match_thresh) # track_thresh, match_thresh, mot20
-    track_results = {   'Frame': [],
-                        'top':[],
-                        'left':[],
-                        'width': [],
-                        'height':[],
-                        'track_id':[]
-                    }
+    #......................... 
+    sort_max_age = 5 
+    sort_min_hits = 2
+    sort_iou_thresh = 0.2
+    sort_tracker = Sort(max_age=sort_max_age,
+                       min_hits=sort_min_hits,
+                       iou_threshold=sort_iou_thresh)
     #......................... 
     save_dir = Path(increment_path(Path("runs/detect") / "object_detection", exist_ok=True))  # increment run
     (save_dir / 'labels' if save_txt else save_dir).mkdir(parents=True, exist_ok=True)  # make dir
@@ -150,9 +139,11 @@ def detect(video_file,model,imgsz):
         rand_color_list.append(rand_color)
     #......................................
    
-    imgsz = check_img_size(imgsz, s=stride)  # check img_size
+    stride = int(model.stride.max())  # model stride
+    # imgsz = check_img_size(imgsz, s=stride)  # check img_size
 
     device = get_device()
+    model = TracedModel(model, device, imgsz)
 
     # Set Dataloader
     vid_path, vid_writer = None, None
@@ -168,13 +159,11 @@ def detect(video_file,model,imgsz):
         model(torch.zeros(1, 3, imgsz, imgsz).to(device).type_as(next(model.parameters())))  # run once
     old_img_w = old_img_h = imgsz
     old_img_b = 1
-    
-    frame_id = 0
 
     t0 = time.time()
+
     
     for path, img, im0s, vid_cap in dataset:
-        frame_id += 1
         img = torch.from_numpy(img).to(device)
         img = img.half() if half else img.float()  # uint8 to fp16/32
         img /= 255.0  # 0 - 255 to 0.0 - 1.0
@@ -191,12 +180,11 @@ def detect(video_file,model,imgsz):
 
         # Inference
         t1 = time_synchronized()
-        with torch.no_grad():   # Calculating gradients would cause a GPU memory leak
-            pred = model(img, augment=augment)[0]
+        pred = model(img, augment=augment)[0]
         t2 = time_synchronized()
 
         # Apply NMS
-        pred = non_max_suppression(pred, conf_thres, iou_thres, classes=classes, agnostic=agnostic_nms)
+        pred = non_max_suppression(pred)
         t3 = time_synchronized()
 
         # Process detections
@@ -207,7 +195,6 @@ def detect(video_file,model,imgsz):
             save_path = str(save_dir / p.name)  # img.jpg
             txt_path = str(save_dir / 'labels' / p.stem) + ('' if dataset.mode == 'image' else f'_{frame}')  # img.txt
             gn = torch.tensor(im0.shape)[[1, 0, 1, 0]]  # normalization gain whwh
-            dets = []
             if len(det):
                 # Rescale boxes from img_size to im0 size
                 det[:, :4] = scale_coords(img.shape[2:], det[:, :4], im0.shape).round()
@@ -217,47 +204,56 @@ def detect(video_file,model,imgsz):
                     n = (det[:, -1] == c).sum()  # detections per class
                     s += f"{n} {names[int(c)]}{'s' * (n > 1)}, "  # add to string
 
-                # Write results
-                for *xyxy, conf, cls in reversed(det):
-                    if save_txt:  # Write to file
-                        xywh = (xyxy2xywh(torch.tensor(xyxy).view(1, 4)) / gn).view(-1).tolist()  # normalized xywh
-                        line = (cls, *xywh, conf) if save_conf else (cls, *xywh)  # label format
-                        with open(txt_path + '.txt', 'a') as f:
-                            f.write(('%g ' * len(line)).rstrip() % line + '\n')
+                #..................USE TRACK FUNCTION....................
+                #pass an empty array to sort
+                dets_to_sort = np.empty((0,6))
+                
+                # NOTE: We send in detected object class too
+                for x1,y1,x2,y2,conf,detclass in det.cpu().detach().numpy():
+                    dets_to_sort = np.vstack((dets_to_sort, 
+                                np.array([x1, y1, x2, y2, conf, detclass])))
+                
+                # Run SORT
+                tracked_dets = sort_tracker.update(dets_to_sort)
+                tracks =sort_tracker.getTrackers()
 
-                    if save_img:
-                        label = f'{names[int(cls)]} {conf:.2f}'
-                        plot_one_box(xyxy, im0, label=label, color=colors[int(cls)], line_thickness=1)
-                    
-                    dets.append([xyxy[0].item(),xyxy[1].item(),xyxy[2].item(),xyxy[3].item(), conf.item()])
+                txt_str = ""
 
-            # Tracking
-            online_targets = tracker.update(np.array(dets), [old_img_w, old_img_h], (img.shape[3], img.shape[2]))
-            online_tlwhs = []
-            online_ids = []
-            online_scores = []
-            for t in online_targets:
-                tlwh = t.tlwh
-                tid = t.track_id
-                track_results['Frame']   .append(frame_id)
-                track_results['top']     .append(tlwh[0])
-                track_results['left']    .append(tlwh[1])
-                track_results['width']   .append(tlwh[2])
-                track_results['height']  .append(tlwh[3])
-                track_results['track_id'].append(tid)
+                #loop over tracks
+                for track in tracks:
+                    [cv2.line(im0, (int(track.centroidarr[i][0]),
+                                    int(track.centroidarr[i][1])), 
+                                    (int(track.centroidarr[i+1][0]),
+                                    int(track.centroidarr[i+1][1])),
+                                    (255,0,0), thickness=2) 
+                                    for i,_ in  enumerate(track.centroidarr) 
+                                      if i < len(track.centroidarr)-1 ] 
 
-                #vertical = tlwh[2] / tlwh[3] > 1.6
-                #if tlwh[2] * tlwh[3] > min_box_area and not vertical:
-                #    online_tlwhs.append(tlwh)
-                #    online_ids.append(tid)
-                #    online_scores.append(t.score)
-            # save results
-            #track_results.append((frame_id, online_tlwhs, online_ids, online_scores))
-            t4 = time_synchronized()
-            #print(track_results)
+                    if save_txt and not save_with_object_id:
+                        # Normalize coordinates
+                        txt_str += "%i %i %f %f" % (track.id, track.detclass, track.centroidarr[-1][0] / im0.shape[1], track.centroidarr[-1][1] / im0.shape[0])
+                        if save_bbox_dim:
+                            txt_str += " %f %f" % (np.abs(track.bbox_history[-1][0] - track.bbox_history[-1][2]) / im0.shape[0], np.abs(track.bbox_history[-1][1] - track.bbox_history[-1][3]) / im0.shape[1])
+                        txt_str += "\n"
+                
+                if save_txt and not save_with_object_id:
+                    with open(txt_path + '.txt', 'a') as f:
+                        f.write(txt_str)
 
+                # draw boxes for visualization
+                if len(tracked_dets)>0:
+                    bbox_xyxy = tracked_dets[:,:4]
+                    identities = tracked_dets[:, 8]
+                    categories = tracked_dets[:, 4]
+                    draw_boxes(im0, bbox_xyxy, identities, categories, names, save_with_object_id, txt_path)
+            else: #SORT should be updated even with no detections
+                tracked_dets = sort_tracker.update()
+            #........................................................
+            
             # Print time (inference + NMS)
-            print(f'{s}Done. ({(1E3 * (t2 - t1)):.1f}ms) Inference, ({(1E3 * (t3 - t2)):.1f}ms) NMS, ({t4-t3:.1f}ms) {len(online_targets)} Tracked.')
+            print(f'{s}Done. ({(1E3 * (t2 - t1)):.1f}ms) Inference, ({(1E3 * (t3 - t2)):.1f}ms) NMS')
+            
+
             # Save results (image with detections)
             if save_img:
                 if dataset.mode == 'image':
@@ -278,11 +274,10 @@ def detect(video_file,model,imgsz):
                         vid_writer = cv2.VideoWriter(save_path, cv2.VideoWriter_fourcc(*'mp4v'), fps, (w, h))
                     vid_writer.write(im0)
 
-    if save_txt or save_img:
+    if save_txt or save_img or save_with_object_id:
         s = f"\n{len(list(save_dir.glob('labels/*.txt')))} labels saved to {save_dir / 'labels'}" if save_txt else ''
-        print(f"Results saved to {save_dir}{s}")
-        DataFrame(track_results).to_csv('{save_dir}tracked_data.csv')
-    
+        #print(f"Results saved to {save_dir}{s}")
+
     print(f'Done. ({time.time() - t0:.3f}s)')
 
 
