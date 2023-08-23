@@ -29,7 +29,7 @@ from utils.torch_utils import time_synchronized, TracedModel
 from utils.plots import plot_one_box
 from tracker.byte_tracker import BYTETracker
 stride = None
-imgsz=1024
+imgsz=720
 resource = boto3.resource('s3')
 
 logger = logging.getLogger(__name__)
@@ -67,7 +67,7 @@ def transform_fn(model, request_body, content_type, accept):
         my_bucket = resource.Bucket(bucket_name)
         my_bucket.download_file(key, local_filename)
 
-        ouput_path= detect(local_filename,model,frame_height)
+        ouput_path= detect(local_filename,model)
         return json.dumps({"output_path":""})
 
     except Exception as e:
@@ -108,7 +108,7 @@ def draw_boxes(img, bbox, identities=None, categories=None, names=None, save_wit
 
 
 
-def detect(video_file,model,imgsz):
+def detect(video_file,model):
     global stride
     augment=False
     agnostic_nms=False
