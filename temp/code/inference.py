@@ -29,7 +29,7 @@ from utils.torch_utils import time_synchronized, TracedModel
 from utils.plots import plot_one_box
 from tracker.byte_tracker import BYTETracker
 stride = None
-imgsz=720
+imgsz=1024
 resource = boto3.resource('s3')
 
 logger = logging.getLogger(__name__)
@@ -109,7 +109,7 @@ def draw_boxes(img, bbox, identities=None, categories=None, names=None, save_wit
 
 
 def detect(video_file,model):
-    global stride
+    global stride,imgsz
     augment=False
     agnostic_nms=False
     classes=None
@@ -288,6 +288,6 @@ def detect(video_file,model):
 
 if __name__ == "__main__":
     model=model_fn("/home/ubuntu/yolo7-cctv-deployment-aws/temp")
-    feed_data={"s3_path":"s3://lightsketch-models-188775091215/models/20200616_VB_trim.mp4"}
+    feed_data={"s3_path":"s3://lightsketch-models-188775091215/models/VID_20200616_130248.mp4"}
     transform_fn(model,feed_data,"application/video","")
     
