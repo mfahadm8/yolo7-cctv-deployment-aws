@@ -1,0 +1,178 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+
+Parameters:
+  ApiAuthPasswordParamName:
+    Type: String
+    Default: "API_AUTH_PASSWORD"
+
+Globals:
+  Api:
+    OpenApiVersion: 3.0.1
+
+Resources:
+  ApiAuthorizerLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: "ApiAuthorizerLambda"
+      Handler: index.lambda_handler
+      Runtime: python3.8
+      MemorySize: 128
+      Environment:
+        Variables:
+          PASSWORD_PARAM_NAME: !Ref ApiAuthPasswordParamName
+      Role:
+        Fn::GetAtt:
+          - ApiAuthorizerLambdaRole
+          - Arn
+      Timeout: 600
+      Code: .
+    Metadata:
+      BuildMethod: makefile
+
+  ApiGwAccountConfig:
+    Type: "AWS::ApiGateway::Account"
+    Properties:
+      CloudWatchRoleArn: !GetAtt "ApiGatewayLoggingRole.Arn"
+
+  ApiGatewayLoggingRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - "apigateway.amazonaws.com"
+            Action: "sts:AssumeRole"
+      Path: "/"
+      ManagedPolicyArns:
+        - !Sub "arn:${AWS::Partition}:iam::aws:policy/service-role/AmazonAPIGatewayPushToCloudWatchLogs"
+
+  AWSApiGateway:
+    Type: AWS::Serverless::Api
+    Properties:
+      Name: ApiGateway
+      StageName: prod
+      MethodSettings:
+        - LoggingLevel: INFO
+          ResourcePath: "/*"
+          HttpMethod: "*"
+      Auth:
+        ApiKeyRequired: true
+        Authorizers:
+          ApiAuthorizer:
+            FunctionPayloadType: TOKEN
+            FunctionArn:
+              Fn::GetAtt: [ApiAuthorizerLambda, Arn]
+            Identity:
+              Header: Api-Pass
+        DefaultAuthorizer: ApiAuthorizer
+        UsagePlan:
+          CreateUsagePlan: SHARED
+          Description: Usage plan for this API
+          Quota:
+            Limit: 10000
+            Period: MONTH
+          Throttle:
+            BurstLimit: 100
+            RateLimit: 200
+      ApiKeySourceType: HEADER
+
+  ApiAuthorizerLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Path: /
+      Policies:
+        - PolicyName: Lambda_Permissions
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                  - logs:DescribeLogGroups
+                Resource:
+                  Fn::Sub: arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:*
+              - Effect: Allow
+                Action:
+                  - ssm:GetParameter
+                Resource:
+                  Fn::Sub: arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${ApiAuthPasswordParamName}
+              - Effect: Allow
+                Action:
+                  - kms:Decrypt
+                Resource:
+                  Fn::Sub: arn:${AWS::Partition}:kms:${AWS::Region}:${AWS::AccountId}:alias/aws/ssm
+
+  SagemakerEndpointMediatorLambda:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: "SagemakerEndpointMediatorLambda"
+      Handler: index.lambda_handler
+      Runtime: python3.8
+      MemorySize: 128
+      Timeout: 600
+      CodeUri: .
+      Role:
+        Fn::GetAtt:
+          - SagemakerEndpointMediatorLambda
+          - Arn
+      Environment:
+        Variables:
+          LABELS_BUCKET: !Ref RedirectUrl
+          ENDPOINT_BUCKET: !Ref RedirectUrl
+      Events:
+        ApiEvent:
+          Type: Api
+          Properties:
+            Path: /
+            Method: post
+            RestApiId:
+              Ref: AWSApiGateway
+
+    Metadata:
+      BuildMethod: makefile
+
+  SagemakerEndpointMediatorLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Path: /
+      Policies:
+        - PolicyName: Lambda_Permissions
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - sagemaker:InvokeEndpoint
+                Resource: "*"
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                  - logs:DescribeLogGroups
+                Resource:
+                  Fn::Sub: arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:*

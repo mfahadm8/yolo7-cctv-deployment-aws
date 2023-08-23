@@ -1,0 +1,10 @@
+version = 0.1
+
+[default]
+[default.sync.parameters]
+stack_name = "SagemakerEndpoint-Stack"
+template = "template.yaml"
+region = "us-east-1"
+profile="default"
+confirm_changeset = true
+capabilities="CAPABILITY_IAM CAPABILITY_AUTO_EXPAND"
