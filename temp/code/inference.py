@@ -1,6 +1,7 @@
 import argparse
 import time
 from pathlib import Path
+import json
 
 import cv2
 import torch
@@ -30,7 +31,7 @@ from utils.plots import plot_one_box
 from tracker.byte_tracker import BYTETracker
 stride = None
 imgsz=1024
-resource = boto3.resource('s3')
+s3 = boto3.resource('s3')
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -49,11 +50,20 @@ def model_fn(model_dir):
     return model
 
 
-def transform_fn(model, request_s3_path):
+def get_s3_bucket_and_key(s3_location_uri):
+    s3_path_without_prefix = s3_location_uri["s3_input_path"][len("s3://"):]
+    return s3_path_without_prefix.split('/', 1) #bucket_name, key
+    
+def transform_fn(model, request_body, content_type, accept):
     try:
-        s3_path_without_prefix = request_s3_path["s3_path"][len("s3://"):]
+        input_data = json.loads(request_body)
+        input_location=input_data["input_location"]
+        output_label_location=input_data["output_label_location"]
+        output_video_location=input_data["output_video_location"]
+        
+        logger.info(">>> input_data"+input_location+","+output_label_location+","+output_video_location)
         # Split the path into bucket name and key
-        bucket_name, key = s3_path_without_prefix.split('/', 1)
+        bucket_name, key = get_s3_bucket_and_key(input_location)
         base_filename = os.path.basename(key)
         # Create a temporary file in the system's temporary directory
         temp_dir = tempfile.gettempdir()
@@ -61,64 +71,23 @@ def transform_fn(model, request_s3_path):
 
         # Download the S3 file
 
-        my_bucket = resource.Bucket(bucket_name)
+        my_bucket = s3.Bucket(bucket_name)
         my_bucket.download_file(key, local_filename)
 
-        ouput_path= detect(local_filename,model)
+        ouput_path= detect(local_filename,model,output_label_location,output_video_location)
         return json.dumps({"output_path":""})
 
     except Exception as e:
         logger.error(traceback.format_exc())
         return json.dumps({"Error":traceback.format_exc()})
 
-
-def transform_fn(model, request_body, content_type, accept):
-    try:
-        f = io.BytesIO(request_body,suffix=".mp4")
-        tfile = tempfile.NamedTemporaryFile(delete=False)
-        tfile.write(f.read())
-        ouput_path= detect(tfile.name,model)
-        return json.dumps({"output_path":""})
-
-    except Exception as e:
-        logger.error(traceback.format_exc())
-        return json.dumps({"Error":traceback.format_exc()})
 
 def get_device():
     device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
     return device
 
-def draw_boxes(img, bbox, identities=None, categories=None, names=None, save_with_object_id=False, path=None,offset=(0, 0)):
-    for i, box in enumerate(bbox):
-        x1, y1, x2, y2 = [int(i) for i in box]
-        x1 += offset[0]
-        x2 += offset[0]
-        y1 += offset[1]
-        y2 += offset[1]
-        cat = int(categories[i]) if categories is not None else 0
-        id = int(identities[i]) if identities is not None else 0
-        data = (int((box[0]+box[2])/2),(int((box[1]+box[3])/2)))
-        label = str(id) + ":"+ names[cat]
-        (w, h), _ = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.6, 1)
-        cv2.rectangle(img, (x1, y1), (x2, y2), (255,0,20), 2)
-        cv2.rectangle(img, (x1, y1 - 20), (x1 + w, y1), (255,144,30), -1)
-        cv2.putText(img, label, (x1, y1 - 5),cv2.FONT_HERSHEY_SIMPLEX, 
-                    0.6, [255, 255, 255], 1)
-        # cv2.circle(img, data, 6, color,-1)   #centroid of box
-        txt_str = ""
-        if save_with_object_id:
-            txt_str += "%i %i %f %f %f %f %f %f" % (
-                id, cat, int(box[0])/img.shape[1], int(box[1])/img.shape[0] , int(box[2])/img.shape[1], int(box[3])/img.shape[0] ,int(box[0] + (box[2] * 0.5))/img.shape[1] ,
-                int(box[1] + (
-                    box[3]* 0.5))/img.shape[0])
-            txt_str += "\n"
-            with open(path + '.txt', 'a') as f:
-                f.write(txt_str)
-    return img
 
-
-
-def detect(video_file,model):
+def detect(video_file,model,output_label_location,output_video_location):
     global stride,imgsz
     augment=False
     agnostic_nms=False
@@ -287,19 +256,25 @@ def detect(video_file,model):
                             save_path += '.mp4'
                         vid_writer = cv2.VideoWriter(save_path, cv2.VideoWriter_fourcc(*'mp4v'), fps, (w, h))
                     vid_writer.write(im0)
+                    video_bucket_name, video_key = get_s3_bucket_and_key(output_video_location)
+                    s3.Bucket(video_bucket_name).upload_file(save_path, video_key)
 
+                    
     if save_txt or save_img:
         s = f"\n{len(list(save_dir.glob('labels/*.txt')))} labels saved to {save_dir / 'labels'}" if save_txt else ''
         print(f"Results saved to {save_dir}{s}")
         DataFrame(track_results).to_csv('{save_dir}tracked_data.csv')
-    
+        label_bucket_name, label_key = get_s3_bucket_and_key(output_label_location)
+        s3.Bucket(label_bucket_name).upload_file('{save_dir}tracked_data.csv', label_key)
+        
     print(f'Done. ({time.time() - t0:.3f}s)')
 
 
 if __name__ == "__main__":
-    # model=model_fn("/home/ubuntu/yolo7-cctv-deployment-aws/temp")
-    # feed_data={"s3_path":"s3://lightsketch-models-188775091215/models/VID_20200616_130248.mp4"}
-    # transform_fn(model,feed_data,"application/video","")
+    model=model_fn("/home/ubuntu/yolo7-cctv-deployment-aws/temp")
+    feed_data_dict={"s3_path":"s3://lightsketch-models-188775091215/models/VID_20200616_130248.mp4"}
+    feed_data=json.dumps(feed_data_dict)
+    transform_fn(model,feed_data,"application/json","")
     
     
     

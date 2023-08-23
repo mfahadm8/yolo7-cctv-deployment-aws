@@ -5,6 +5,18 @@ Parameters:
   ApiAuthPasswordParamName:
     Type: String
     Default: "API_AUTH_PASSWORD"
+    
+  OutputLabelsBucketName:
+    Type: String
+    Default: "lightsketch-models-188775091215"
+
+  OutputVideoBucketName:
+    Type: String
+    Default: "lightsketch-models-188775091215"
+
+  SageMakerEndpointName:
+    Type: String
+    Default: "lightsketch-models-188775091215"
 
 Globals:
   Api:
@@ -132,8 +144,9 @@ Resources:
           - Arn
       Environment:
         Variables:
-          LABELS_BUCKET: !Ref RedirectUrl
-          ENDPOINT_BUCKET: !Ref RedirectUrl
+          LABELS_BUCKET: !Ref OutputLabelsBucketName
+          VIDEO_BUCKET: !Ref OutputVideoBucketName
+          SAGEMAKER_ENDPOINT_NAME: !Ref SageMakerEndpointName
       Events:
         ApiEvent:
           Type: Api

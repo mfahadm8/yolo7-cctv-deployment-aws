@@ -5,7 +5,7 @@ import boto3
 
 LABELS_BUCKET=os.environ.get("LABELS_BUCKET")
 VIDEO_BUCKET=os.environ.get("VIDEO_BUCKET")
-SAGEMAKER_ENDPOINT=os.environ.get("SAGEMAKER_ENDPOINT")
+SAGEMAKER_ENDPOINT_NAME=os.environ.get("SAGEMAKER_ENDPOINT_NAME")
 boto_session = boto3.session.Session()
 sm_runtime = boto_session.client("sagemaker-runtime")
 
@@ -18,7 +18,7 @@ def lambda_handler(event, context):
     input_base_file = os.path.basename(input_key)
     input_base_filename= os.path.splitext(input_base_file)[0]
     response = sm_runtime.invoke_endpoint_async(
-        EndpointName=SAGEMAKER_ENDPOINT, 
+        EndpointName=SAGEMAKER_ENDPOINT_NAME, 
         InputLocation=input_uri
         )
     output_location = response['OutputLocation']
@@ -29,7 +29,6 @@ def lambda_handler(event, context):
     return {
         'statusCode': 200,
         'body': {
-            'inference_id': response['InferenceId'],
             'label_uri': "s3://"+LABELS_BUCKET+"/"+output_base_filename+"/"+input_base_filename+".csv",
             'video_uri': "s3://"+VIDEO_BUCKET+"/"+output_base_filename+"/"+input_base_file
         }
