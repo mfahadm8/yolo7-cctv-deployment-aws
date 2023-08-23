@@ -68,7 +68,7 @@ def transform_fn(model, request_body, content_type, accept):
         my_bucket = resource.Bucket(bucket_name)
         my_bucket.download_file(key, local_filename)
 
-        ouput_path= detect(local_filename,model,frame_height)
+        ouput_path= detect(local_filename,model)
         return json.dumps({"output_path":""})
 
     except Exception as e:
@@ -108,8 +108,7 @@ def draw_boxes(img, bbox, identities=None, categories=None, names=None, save_wit
     return img
 
 
-
-def detect(video_file,model,imgsz):
+def detect(video_file,model):
     augment=False
     save_img=True
 
@@ -119,7 +118,7 @@ def detect(video_file,model,imgsz):
     #......................... 
     sort_max_age = 5 
     sort_min_hits = 2
-    sort_iou_thresh = 0.2
+    sort_iou_thresh = 0.5
     sort_tracker = Sort(max_age=sort_max_age,
                        min_hits=sort_min_hits,
                        iou_threshold=sort_iou_thresh)
@@ -143,7 +142,6 @@ def detect(video_file,model,imgsz):
     # imgsz = check_img_size(imgsz, s=stride)  # check img_size
 
     device = get_device()
-    model = TracedModel(model, device, imgsz)
 
     # Set Dataloader
     vid_path, vid_writer = None, None
@@ -252,7 +250,8 @@ def detect(video_file,model,imgsz):
             
             # Print time (inference + NMS)
             print(f'{s}Done. ({(1E3 * (t2 - t1)):.1f}ms) Inference, ({(1E3 * (t3 - t2)):.1f}ms) NMS')
-            
+            # cv2.imshow(str(p), im0)
+            # cv2.waitKey(1)  # 1 millisecond
 
             # Save results (image with detections)
             if save_img:
