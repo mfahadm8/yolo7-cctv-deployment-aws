@@ -29,6 +29,7 @@ def lambda_handler(event, context):
     return {
         'statusCode': 200,
         'body': {
+            'inference_id': response['InferenceId'],
             'label_uri': "s3://"+LABELS_BUCKET+"/"+output_base_filename+"/"+input_base_filename+".csv",
             'video_uri': "s3://"+VIDEO_BUCKET+"/"+output_base_filename+"/"+input_base_file
         }

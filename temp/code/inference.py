@@ -48,13 +48,10 @@ def model_fn(model_dir):
     model = TracedModel(model, device, imgsz)
     return model
 
-def transform_fn(model, request_body, content_type, accept):
+
+def transform_fn(model, request_s3_path):
     try:
-        interval = int(os.environ.get('FRAME_INTERVAL', 30))
-        frame_width = int(os.environ.get('FRAME_WIDTH', 1024))
-        frame_height = int(os.environ.get('FRAME_HEIGHT', 1024))
-        batch_size = int(os.environ.get('BATCH_SIZE', 12))
-        s3_path_without_prefix = request_body["s3_path"][len("s3://"):]
+        s3_path_without_prefix = request_s3_path["s3_path"][len("s3://"):]
         # Split the path into bucket name and key
         bucket_name, key = s3_path_without_prefix.split('/', 1)
         base_filename = os.path.basename(key)
@@ -68,6 +65,19 @@ def transform_fn(model, request_body, content_type, accept):
         my_bucket.download_file(key, local_filename)
 
         ouput_path= detect(local_filename,model)
+        return json.dumps({"output_path":""})
+
+    except Exception as e:
+        logger.error(traceback.format_exc())
+        return json.dumps({"Error":traceback.format_exc()})
+
+
+def transform_fn(model, request_body, content_type, accept):
+    try:
+        f = io.BytesIO(request_body)
+        tfile = tempfile.NamedTemporaryFile(delete=False)
+        tfile.write(f.read())
+        ouput_path= detect(tfile.file,model)
         return json.dumps({"output_path":""})
 
     except Exception as e:
