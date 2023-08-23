@@ -74,10 +74,10 @@ def transform_fn(model, request_s3_path):
 
 def transform_fn(model, request_body, content_type, accept):
     try:
-        f = io.BytesIO(request_body)
+        f = io.BytesIO(request_body,suffix=".mp4")
         tfile = tempfile.NamedTemporaryFile(delete=False)
         tfile.write(f.read())
-        ouput_path= detect(tfile.file,model)
+        ouput_path= detect(tfile.name,model)
         return json.dumps({"output_path":""})
 
     except Exception as e:
@@ -297,7 +297,9 @@ def detect(video_file,model):
 
 
 if __name__ == "__main__":
-    model=model_fn("/home/ubuntu/yolo7-cctv-deployment-aws/temp")
-    feed_data={"s3_path":"s3://lightsketch-models-188775091215/models/VID_20200616_130248.mp4"}
-    transform_fn(model,feed_data,"application/video","")
+    # model=model_fn("/home/ubuntu/yolo7-cctv-deployment-aws/temp")
+    # feed_data={"s3_path":"s3://lightsketch-models-188775091215/models/VID_20200616_130248.mp4"}
+    # transform_fn(model,feed_data,"application/video","")
+    
+    
     
