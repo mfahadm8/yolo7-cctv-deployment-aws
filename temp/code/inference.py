@@ -116,9 +116,9 @@ def detect(video_file,model,imgsz):
     iou_thres=0.45
     conf_thres=0.25
     save_conf=True
-    track_thresh: float = 0.25
-    track_buffer: int = 30
-    match_thresh: float = 0.8
+    track_thresh = 0.6
+    track_buffer = 30
+    match_thresh = 0.9
     mot20=False
     save_img=True
 
