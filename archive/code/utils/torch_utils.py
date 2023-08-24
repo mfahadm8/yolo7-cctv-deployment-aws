@@ -16,7 +16,7 @@ import torch.backends.cudnn as cudnn
 import torch.nn as nn
 import torch.nn.functional as F
 import torchvision
-
+import tempfile
 try:
     import thop  # for FLOPS computation
 except ImportError:
@@ -360,13 +360,14 @@ class TracedModel(nn.Module):
         rand_example = torch.rand(1, 3, img_size, img_size)
         
         traced_script_module = torch.jit.trace(self.model, rand_example, strict=False)
-        #traced_script_module = torch.jit.script(self.model)
-        traced_script_module.save("traced_model.pt")
+        temp_dir = tempfile.mkdtemp()
+        traced_model_path = os.path.join(temp_dir, "traced_model.pt")
+        traced_script_module.save(traced_model_path)
         print(" traced_script_module saved! ")
         self.model = traced_script_module
         self.model.to(device)
         self.detect_layer.to(device)
-        print(" model is traced! \n") 
+        print(" model is traced! \n")
 
     def forward(self, x, augment=False, profile=False):
         out = self.model(x)

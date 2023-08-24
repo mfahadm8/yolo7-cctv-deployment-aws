@@ -115,7 +115,7 @@ def detect(video_file,model,output_label_location,output_video_location):
                         'track_id':[]
                     }
     #......................... 
-    save_dir = Path(increment_path(Path("runs/detect") / "object_detection", exist_ok=True))  # increment run
+    save_dir = Path(increment_path(Path("/tmp/runs/detect") / "object_detection", exist_ok=True))  # increment run
     (save_dir / 'labels' if save_txt else save_dir).mkdir(parents=True, exist_ok=True)  # make dir
 
     
