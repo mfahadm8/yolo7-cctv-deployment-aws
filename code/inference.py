@@ -49,7 +49,7 @@ def model_fn(model_dir):
 
 
 def get_s3_bucket_and_key(s3_location_uri):
-    s3_path_without_prefix = s3_location_uri["s3_input_path"][len("s3://"):]
+    s3_path_without_prefix = s3_location_uri[len("s3://"):]
     return s3_path_without_prefix.split('/', 1) #bucket_name, key
     
 def transform_fn(model, request_body, content_type, accept):
@@ -272,8 +272,8 @@ def detect(video_file,model,output_label_location,output_video_location):
 
 
 # if __name__ == "__main__":
-#     model=model_fn("/home/ubuntu/yolo7-cctv-deployment-aws/temp")
-#     feed_data_dict={"s3_path":"s3://lightsketch-models-188775091215/models/VID_20200616_130248.mp4"}
+#     model=model_fn("/home/ubuntu/yolo7-cctv-deployment-aws/")
+#     feed_data_dict={"input_location":"s3://lightsketch-models-188775091215/models/VID_20200616_130248.mp4","output_label_location":"","output_video_location":""}
 #     feed_data=json.dumps(feed_data_dict)
 #     transform_fn(model,feed_data,"application/json","")
     
