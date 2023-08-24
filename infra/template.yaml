@@ -14,6 +14,10 @@ Parameters:
     Type: String
     Default: "lightsketch-models-188775091215"
 
+  InputBucketName:
+    Type: String
+    Default: "lightsketch-models-188775091215"
+
   SageMakerEndpointName:
     Type: String
     Default: "ball-tracking-v7"
@@ -134,7 +138,7 @@ Resources:
     Properties:
       FunctionName: "SagemakerEndpointMediatorLambda"
       Handler: index.lambda_handler
-      Runtime: python3.8
+      Runtime: python3.9
       MemorySize: 128
       Timeout: 600
       CodeUri: .
@@ -146,6 +150,7 @@ Resources:
         Variables:
           LABELS_BUCKET: !Ref OutputLabelsBucketName
           VIDEO_BUCKET: !Ref OutputVideoBucketName
+          INPUT_BUCKET: !Ref InputBucketName
           SAGEMAKER_ENDPOINT_NAME: !Ref SageMakerEndpointName
       Events:
         ApiEvent:

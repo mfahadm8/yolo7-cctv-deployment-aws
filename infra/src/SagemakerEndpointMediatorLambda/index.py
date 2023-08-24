@@ -10,6 +10,7 @@ import uuid
 
 LABELS_BUCKET=os.environ.get("LABELS_BUCKET")
 VIDEO_BUCKET=os.environ.get("VIDEO_BUCKET")
+INPUT_BUCKET=os.environ.get("VIDEO_BUCKET")
 SAGEMAKER_ENDPOINT_NAME=os.environ.get("SAGEMAKER_ENDPOINT_NAME")
 sm_session = sagemaker.session.Session()
 predictor=Predictor(endpoint_name=SAGEMAKER_ENDPOINT_NAME,sagemaker_session=sm_session,serializer=JSONSerializer())
@@ -27,11 +28,11 @@ def lambda_handler(event, context):
     # Prepare your custom input data as a dictionary
     input_data = {
         'input_location': input_video_uri,
-        'output_label_location':  "s3://"+LABELS_BUCKET+"/"+inference_id+"/"+input_base_filename+".csv",
-        'output_video_location':  "s3://"+VIDEO_BUCKET+"/"+inference_id+"/"+input_base_file
+        'output_label_location':  "s3://"+LABELS_BUCKET+"/async-inference/"+inference_id+"/"+input_base_filename+".csv",
+        'output_video_location':  "s3://"+VIDEO_BUCKET+"/async-inference/"+inference_id+"/"+input_base_file
     }
 
-    input_s3_uri=f"s3://{bucket}/{prefix}/input/{inference_id}.json"
+    input_s3_uri=f"s3://{INPUT_BUCKET}/async-inference/input/{inference_id}.json"
     # Call the predict method to send the input data to the endpoint asynchronously
     response = async_predictor.predict_async(data=input_data,input_path=input_s3_uri,inference_id=inference_id)
     
