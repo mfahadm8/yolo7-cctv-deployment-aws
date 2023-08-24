@@ -40,7 +40,7 @@ def model_fn(model_dir):
     global stride
     device = get_device()
     logger.info(">>> Device is '%s'.." % device)
-    model = attempt_load(model_dir + '/best.pt', map_location=torch.device(device))
+    model = attempt_load(model_dir + '/yolov7-20230427.pt', map_location=torch.device(device))
     logger.info(">>> Model Type!..")
     logger.info(type(model))
     logger.info(">>> Model loaded!..")
@@ -91,11 +91,11 @@ def detect(video_file,model,output_label_location,output_video_location):
     agnostic_nms=False
     classes=None
     iou_thres=0.45
-    conf_thres=0.25
+    conf_thres=0.1
     save_conf=True
     track_thresh = 0.6
     track_buffer = 30
-    match_thresh = 0.9
+    match_thresh = 0.6
     mot20=False
     save_img=True
 
@@ -156,11 +156,12 @@ def detect(video_file,model,output_label_location,output_video_location):
     for path, img, im0s, vid_cap in dataset:
         frame_id += 1
         img = torch.from_numpy(img).to(device)
+        print(img)
         img = img.half() if half else img.float()  # uint8 to fp16/32
         img /= 255.0  # 0 - 255 to 0.0 - 1.0
+        print(img)
         if img.ndimension() == 3:
             img = img.unsqueeze(0)
-
         # Warmup
         if device != 'cpu' and (old_img_b != img.shape[0] or old_img_h != img.shape[2] or old_img_w != img.shape[3]):
             old_img_b = img.shape[0]
@@ -174,11 +175,11 @@ def detect(video_file,model,output_label_location,output_video_location):
         with torch.no_grad():   # Calculating gradients would cause a GPU memory leak
             pred = model(img, augment=augment)[0]
         t2 = time_synchronized()
-
+        print(pred)
         # Apply NMS
         pred = non_max_suppression(pred, conf_thres, iou_thres, classes=classes, agnostic=agnostic_nms)
         t3 = time_synchronized()
-
+        print(pred)
         # Process detections
         for i, det in enumerate(pred):  # detections per image
             p, s, im0, frame = path, '', im0s, getattr(dataset, 'frame', 0)
@@ -271,11 +272,11 @@ def detect(video_file,model,output_label_location,output_video_location):
     print(f'Done. ({time.time() - t0:.3f}s)')
 
 
-# if __name__ == "__main__":
-#     model=model_fn("/home/ubuntu/yolo7-cctv-deployment-aws/")
-#     feed_data_dict={"input_location":"s3://lightsketch-models-188775091215/models/VID_20200616_130248.mp4","output_label_location":"","output_video_location":""}
-#     feed_data=json.dumps(feed_data_dict)
-#     transform_fn(model,feed_data,"application/json","")
+if __name__ == "__main__":
+    model=model_fn("/home/ubuntu/yolo7-cctv-deployment-aws/")
+    feed_data_dict={"input_location":"s3://lightsketch-models-188775091215/models/VID_20200616_130248.mp4","output_label_location":"","output_video_location":""}
+    feed_data=json.dumps(feed_data_dict)
+    transform_fn(model,feed_data,"application/json","")
     
     
     

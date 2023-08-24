@@ -16,7 +16,7 @@ Parameters:
 
   SageMakerEndpointName:
     Type: String
-    Default: "lightsketch-models-188775091215"
+    Default: "ball-tracking-v7"
 
 Globals:
   Api:
