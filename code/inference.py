@@ -45,8 +45,6 @@ def model_fn(model_dir):
     logger.info(type(model))
     logger.info(">>> Model loaded!..")
     logger.info(model)
-    stride = int(model.stride.max())
-    model = TracedModel(model, device, imgsz)
     return model
 
 
@@ -104,7 +102,10 @@ def detect(video_file,model,output_label_location,output_video_location):
     save_with_object_id=True
     save_txt=True
     save_bbox_dim=True
-
+    device = get_device()
+    stride = int(model.stride.max())
+    model = TracedModel(model, device, imgsz)
+    
     tracker = BYTETracker(track_thresh,track_buffer,mot20,match_thresh) # track_thresh, match_thresh, mot20
     track_results = {   'Frame': [],
                         'top':[],
