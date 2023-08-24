@@ -140,7 +140,7 @@ Resources:
       CodeUri: .
       Role:
         Fn::GetAtt:
-          - SagemakerEndpointMediatorLambda
+          - SagemakerEndpointMediatorLambdaRole
           - Arn
       Environment:
         Variables:

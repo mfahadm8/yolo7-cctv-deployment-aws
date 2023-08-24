@@ -270,11 +270,11 @@ def detect(video_file,model,output_label_location,output_video_location):
     print(f'Done. ({time.time() - t0:.3f}s)')
 
 
-if __name__ == "__main__":
-    model=model_fn("/home/ubuntu/yolo7-cctv-deployment-aws/temp")
-    feed_data_dict={"s3_path":"s3://lightsketch-models-188775091215/models/VID_20200616_130248.mp4"}
-    feed_data=json.dumps(feed_data_dict)
-    transform_fn(model,feed_data,"application/json","")
+# if __name__ == "__main__":
+#     model=model_fn("/home/ubuntu/yolo7-cctv-deployment-aws/temp")
+#     feed_data_dict={"s3_path":"s3://lightsketch-models-188775091215/models/VID_20200616_130248.mp4"}
+#     feed_data=json.dumps(feed_data_dict)
+#     transform_fn(model,feed_data,"application/json","")
     
     
     
