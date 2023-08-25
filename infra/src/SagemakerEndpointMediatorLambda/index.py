@@ -10,7 +10,7 @@ import uuid
 
 LABELS_BUCKET=os.environ.get("LABELS_BUCKET")
 VIDEO_BUCKET=os.environ.get("VIDEO_BUCKET")
-INPUT_BUCKET=os.environ.get("VIDEO_BUCKET")
+INPUT_BUCKET=os.environ.get("INPUT_BUCKET")
 SAGEMAKER_ENDPOINT_NAME=os.environ.get("SAGEMAKER_ENDPOINT_NAME")
 sm_session = sagemaker.session.Session()
 predictor=Predictor(endpoint_name=SAGEMAKER_ENDPOINT_NAME,sagemaker_session=sm_session,serializer=JSONSerializer())

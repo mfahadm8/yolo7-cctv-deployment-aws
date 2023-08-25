@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Set the AWS region and profile
-AWS_REGION="us-east-1"
+AWS_REGION="ca-central-1"
 
 # Set the parameter name
 PARAMETER_NAME="API_AUTH_PASSWORD"

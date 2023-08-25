@@ -8,11 +8,11 @@ Parameters:
     
   OutputLabelsBucketName:
     Type: String
-    Default: "sm-ball-tracking-output-blobs"
+    Default: "sm-ball-tracking-output-labels"
 
   OutputVideoBucketName:
     Type: String
-    Default: "sm-ball-tracking-output-files"
+    Default: "sm-ball-tracking-output-blobs"
 
   InputBucketName:
     Type: String
