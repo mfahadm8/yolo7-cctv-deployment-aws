@@ -38,8 +38,8 @@ def lambda_handler(event, context):
     
     return {
         'statusCode': 200,
-        'body': {
+        'body': json.dumps({
             'label_uri':input_data["output_label_location"],
             'video_uri':input_data["output_video_location"]
-        }
+        })
     }
