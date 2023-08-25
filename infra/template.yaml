@@ -8,15 +8,15 @@ Parameters:
     
   OutputLabelsBucketName:
     Type: String
-    Default: "lightsketch-models-188775091215"
+    Default: "sm-ball-tracking-output-blobs"
 
   OutputVideoBucketName:
     Type: String
-    Default: "lightsketch-models-188775091215"
+    Default: "sm-ball-tracking-output-files"
 
   InputBucketName:
     Type: String
-    Default: "lightsketch-models-188775091215"
+    Default: "sm-ball-tracking-inputs"
 
   SageMakerEndpointName:
     Type: String
