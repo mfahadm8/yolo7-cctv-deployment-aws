@@ -3,8 +3,8 @@ import io
 
 s3 = boto3.resource('s3')
 
-bucket_name = 'sm-ball-tracking-output-labels'
-key = '20200616_VB_trim.mp4'
+bucket_name = 'sm-ball-tracking-output-blobs'
+key = 'async-inference/0fbbf919-885f-4d3b-8be9-fd55c89e164a/20200616_VB_trim.mp4'
 
 bucket = s3.Bucket(bucket_name)
 

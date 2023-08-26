@@ -261,6 +261,8 @@ def detect(video_file,model,output_label_location,output_video_location):
 
                     
     if save_txt or save_img:
+        if isinstance(vid_writer, cv2.VideoWriter):
+            vid_writer.release()
         s = f"\n{len(list(save_dir.glob('labels/*.txt')))} labels saved to {save_dir / 'labels'}" if save_txt else ''
         print(f"Results saved to {save_dir}{s}")
         base_filename = os.path.splitext(os.path.basename(video_file))[0]
@@ -269,6 +271,7 @@ def detect(video_file,model,output_label_location,output_video_location):
         s3.Bucket(label_bucket_name).upload_file(f'{save_dir}/{base_filename}.csv', label_key)
         video_bucket_name, video_key = get_s3_bucket_and_key(output_video_location)
         bucket_resource=s3.Bucket(video_bucket_name)
+        print("vide0 file saved to "+save_path)
         with open(save_path, 'rb') as f:
             image_data = f.read()
             file_obj = io.BytesIO(image_data)
