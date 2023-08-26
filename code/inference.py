@@ -30,7 +30,7 @@ from utils.torch_utils import time_synchronized, TracedModel
 from utils.plots import plot_one_box
 from tracker.byte_tracker import BYTETracker
 stride = None
-imgsz=1024
+imgsz=640
 s3 = boto3.resource('s3')
 
 logger = logging.getLogger(__name__)
@@ -40,7 +40,7 @@ def model_fn(model_dir):
     global stride
     device = get_device()
     logger.info(">>> Device is '%s'.." % device)
-    model = attempt_load(model_dir + '/yolov7-20230427.pt', map_location=torch.device(device))
+    model = attempt_load(model_dir + '/yolov7.pt', map_location=torch.device(device))
     logger.info(">>> Model Type!..")
     logger.info(type(model))
     logger.info(">>> Model loaded!..")
@@ -91,7 +91,7 @@ def detect(video_file,model,output_label_location,output_video_location):
     agnostic_nms=False
     classes=None
     iou_thres=0.45
-    conf_thres=0.1
+    conf_thres=0.25
     save_conf=True
     track_thresh = 0.6
     track_buffer = 30
@@ -156,10 +156,10 @@ def detect(video_file,model,output_label_location,output_video_location):
     for path, img, im0s, vid_cap in dataset:
         frame_id += 1
         img = torch.from_numpy(img).to(device)
-        print(img)
+
         img = img.half() if half else img.float()  # uint8 to fp16/32
         img /= 255.0  # 0 - 255 to 0.0 - 1.0
-        print(img)
+
         if img.ndimension() == 3:
             img = img.unsqueeze(0)
         # Warmup
@@ -175,11 +175,11 @@ def detect(video_file,model,output_label_location,output_video_location):
         with torch.no_grad():   # Calculating gradients would cause a GPU memory leak
             pred = model(img, augment=augment)[0]
         t2 = time_synchronized()
-        print(pred)
+
         # Apply NMS
         pred = non_max_suppression(pred, conf_thres, iou_thres, classes=classes, agnostic=agnostic_nms)
         t3 = time_synchronized()
-        print(pred)
+
         # Process detections
         for i, det in enumerate(pred):  # detections per image
             p, s, im0, frame = path, '', im0s, getattr(dataset, 'frame', 0)
@@ -227,13 +227,13 @@ def detect(video_file,model,output_label_location,output_video_location):
                 track_results['height']  .append(tlwh[3])
                 track_results['track_id'].append(tid)
 
-                #vertical = tlwh[2] / tlwh[3] > 1.6
-                #if tlwh[2] * tlwh[3] > min_box_area and not vertical:
-                #    online_tlwhs.append(tlwh)
-                #    online_ids.append(tid)
-                #    online_scores.append(t.score)
-            # save results
-            #track_results.append((frame_id, online_tlwhs, online_ids, online_scores))
+            #     vertical = tlwh[2] / tlwh[3] > 1.6
+            #     if tlwh[2] * tlwh[3] > min_box_area and not vertical:
+            #        online_tlwhs.append(tlwh)
+            #        online_ids.append(tid)
+            #        online_scores.append(t.score)
+            # # save results
+            # track_results.append((frame_id, online_tlwhs, online_ids, online_scores))
             t4 = time_synchronized()
             #print(track_results)
 
@@ -258,25 +258,25 @@ def detect(video_file,model,output_label_location,output_video_location):
                             save_path += '.mp4'
                         vid_writer = cv2.VideoWriter(save_path, cv2.VideoWriter_fourcc(*'mp4v'), fps, (w, h))
                     vid_writer.write(im0)
-                    video_bucket_name, video_key = get_s3_bucket_and_key(output_video_location)
-                    s3.Bucket(video_bucket_name).upload_file(save_path, video_key)
 
                     
     if save_txt or save_img:
         s = f"\n{len(list(save_dir.glob('labels/*.txt')))} labels saved to {save_dir / 'labels'}" if save_txt else ''
         print(f"Results saved to {save_dir}{s}")
-        DataFrame(track_results).to_csv('{save_dir}tracked_data.csv')
+        DataFrame(track_results).to_csv(f'{save_dir}/20200616_VB_trim.csv')
         label_bucket_name, label_key = get_s3_bucket_and_key(output_label_location)
-        s3.Bucket(label_bucket_name).upload_file('{save_dir}tracked_data.csv', label_key)
-        
+        s3.Bucket(label_bucket_name).upload_file(f'{save_dir}/20200616_VB_trim.csv', label_key)
+        video_bucket_name, video_key = get_s3_bucket_and_key(output_video_location)
+        s3.Bucket(video_bucket_name).upload_file(save_path, video_key)
+
     print(f'Done. ({time.time() - t0:.3f}s)')
 
 
-if __name__ == "__main__":
-    model=model_fn("/home/ubuntu/yolo7-cctv-deployment-aws/")
-    feed_data_dict={"input_location":"s3://lightsketch-models-188775091215/models/VID_20200616_130248.mp4","output_label_location":"","output_video_location":""}
-    feed_data=json.dumps(feed_data_dict)
-    transform_fn(model,feed_data,"application/json","")
+# if __name__ == "__main__":
+#     model=model_fn("/home/ubuntu/yolo7-cctv-deployment-aws/")
+#     feed_data_dict={"input_location":"s3://test-vod-v120-source71e471f1-5vcytwlc3m1b/test-videos/20200616_VB_trim.mp4","output_label_location":"s3://sm-ball-tracking-output-labels/async-inference/0fbbf919-885f-4d3b-8be9-fd55c89e164a/20200616_VB_trim.csv","output_video_location":"s3://sm-ball-tracking-output-blobs/async-inference/0fbbf919-885f-4d3b-8be9-fd55c89e164a/20200616_VB_trim.mp4"}
+#     feed_data=json.dumps(feed_data_dict)
+#     transform_fn(model,feed_data,"application/json","")
     
     
     
