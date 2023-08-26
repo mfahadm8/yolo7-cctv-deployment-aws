@@ -263,12 +263,16 @@ def detect(video_file,model,output_label_location,output_video_location):
     if save_txt or save_img:
         s = f"\n{len(list(save_dir.glob('labels/*.txt')))} labels saved to {save_dir / 'labels'}" if save_txt else ''
         print(f"Results saved to {save_dir}{s}")
-        DataFrame(track_results).to_csv(f'{save_dir}/20200616_VB_trim.csv')
+        base_filename = os.path.splitext(os.path.basename(video_file))[0]
+        DataFrame(track_results).to_csv(f'{save_dir}/{base_filename}.csv')
         label_bucket_name, label_key = get_s3_bucket_and_key(output_label_location)
-        s3.Bucket(label_bucket_name).upload_file(f'{save_dir}/20200616_VB_trim.csv', label_key)
+        s3.Bucket(label_bucket_name).upload_file(f'{save_dir}/{base_filename}.csv', label_key)
         video_bucket_name, video_key = get_s3_bucket_and_key(output_video_location)
-        s3.Bucket(video_bucket_name).upload_file(save_path, video_key)
-
+        bucket_resource=s3.Bucket(video_bucket_name)
+        with open(save_path, 'rb') as f:
+            image_data = f.read()
+            file_obj = io.BytesIO(image_data)
+            bucket_resource.upload_fileobj(Fileobj=file_obj, Key=video_key)
     print(f'Done. ({time.time() - t0:.3f}s)')
 
 
