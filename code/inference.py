@@ -72,8 +72,8 @@ def transform_fn(model, request_body, content_type, accept):
         my_bucket = s3.Bucket(bucket_name)
         my_bucket.download_file(key, local_filename)
 
-        ouput_path= detect(local_filename,model,output_label_location,output_video_location)
-        return json.dumps({"output_path":""})
+        detect(local_filename,model,output_label_location,output_video_location)
+        return json.dumps({"output_label_location":output_label_location,"output_video_location":output_video_location})
 
     except Exception as e:
         logger.error(traceback.format_exc())
