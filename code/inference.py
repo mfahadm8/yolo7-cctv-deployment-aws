@@ -40,7 +40,7 @@ def model_fn(model_dir):
     global stride
     device = get_device()
     logger.info(">>> Device is '%s'.." % device)
-    model = attempt_load(model_dir + '/yolov7.pt', map_location=torch.device(device))
+    model = attempt_load(model_dir + '/yolov7-20230427.pt', map_location=torch.device(device))
     logger.info(">>> Model Type!..")
     logger.info(type(model))
     logger.info(">>> Model loaded!..")
@@ -91,7 +91,7 @@ def detect(video_file,model,output_label_location,output_video_location):
     agnostic_nms=False
     classes=None
     iou_thres=0.45
-    conf_thres=0.25
+    conf_thres=0.0001
     save_conf=True
     track_thresh = 0.6
     track_buffer = 30
@@ -175,11 +175,11 @@ def detect(video_file,model,output_label_location,output_video_location):
         with torch.no_grad():   # Calculating gradients would cause a GPU memory leak
             pred = model(img, augment=augment)[0]
         t2 = time_synchronized()
-
+        print(pred)
         # Apply NMS
         pred = non_max_suppression(pred, conf_thres, iou_thres, classes=classes, agnostic=agnostic_nms)
         t3 = time_synchronized()
-
+        print(pred)
         # Process detections
         for i, det in enumerate(pred):  # detections per image
             p, s, im0, frame = path, '', im0s, getattr(dataset, 'frame', 0)
@@ -212,33 +212,33 @@ def detect(video_file,model,output_label_location,output_video_location):
                     
                     dets.append([xyxy[0].item(),xyxy[1].item(),xyxy[2].item(),xyxy[3].item(), conf.item()])
 
-            # Tracking
-            online_targets = tracker.update(np.array(dets), [old_img_w, old_img_h], (img.shape[3], img.shape[2]))
-            online_tlwhs = []
-            online_ids = []
-            online_scores = []
-            for t in online_targets:
-                tlwh = t.tlwh
-                tid = t.track_id
-                track_results['Frame']   .append(frame_id)
-                track_results['top']     .append(tlwh[0])
-                track_results['left']    .append(tlwh[1])
-                track_results['width']   .append(tlwh[2])
-                track_results['height']  .append(tlwh[3])
-                track_results['track_id'].append(tid)
+                # Tracking
+                online_targets = tracker.update(np.array(dets), [old_img_w, old_img_h], (img.shape[3], img.shape[2]))
+                online_tlwhs = []
+                online_ids = []
+                online_scores = []
+                for t in online_targets:
+                    tlwh = t.tlwh
+                    tid = t.track_id
+                    track_results['Frame']   .append(frame_id)
+                    track_results['top']     .append(tlwh[0])
+                    track_results['left']    .append(tlwh[1])
+                    track_results['width']   .append(tlwh[2])
+                    track_results['height']  .append(tlwh[3])
+                    track_results['track_id'].append(tid)
 
-            #     vertical = tlwh[2] / tlwh[3] > 1.6
-            #     if tlwh[2] * tlwh[3] > min_box_area and not vertical:
-            #        online_tlwhs.append(tlwh)
-            #        online_ids.append(tid)
-            #        online_scores.append(t.score)
-            # # save results
-            # track_results.append((frame_id, online_tlwhs, online_ids, online_scores))
-            t4 = time_synchronized()
-            #print(track_results)
+                #     vertical = tlwh[2] / tlwh[3] > 1.6
+                #     if tlwh[2] * tlwh[3] > min_box_area and not vertical:
+                #        online_tlwhs.append(tlwh)
+                #        online_ids.append(tid)
+                #        online_scores.append(t.score)
+                # # save results
+                # track_results.append((frame_id, online_tlwhs, online_ids, online_scores))
+                t4 = time_synchronized()
+                #print(track_results)
 
-            # Print time (inference + NMS)
-            print(f'{s}Done. ({(1E3 * (t2 - t1)):.1f}ms) Inference, ({(1E3 * (t3 - t2)):.1f}ms) NMS, ({t4-t3:.1f}ms) {len(online_targets)} Tracked.')
+                # Print time (inference + NMS)
+                print(f'{s}Done. ({(1E3 * (t2 - t1)):.1f}ms) Inference, ({(1E3 * (t3 - t2)):.1f}ms) NMS, ({t4-t3:.1f}ms) {len(online_targets)} Tracked.')
             # Save results (image with detections)
             if save_img:
                 if dataset.mode == 'image':
@@ -279,11 +279,11 @@ def detect(video_file,model,output_label_location,output_video_location):
     print(f'Done. ({time.time() - t0:.3f}s)')
 
 
-# if __name__ == "__main__":
-#     model=model_fn("/home/ubuntu/yolo7-cctv-deployment-aws/")
-#     feed_data_dict={"input_location":"s3://test-vod-v120-source71e471f1-5vcytwlc3m1b/test-videos/20200616_VB_trim.mp4","output_label_location":"s3://sm-ball-tracking-output-labels/async-inference/0fbbf919-885f-4d3b-8be9-fd55c89e164a/20200616_VB_trim.csv","output_video_location":"s3://sm-ball-tracking-output-blobs/async-inference/0fbbf919-885f-4d3b-8be9-fd55c89e164a/20200616_VB_trim.mp4"}
-#     feed_data=json.dumps(feed_data_dict)
-#     transform_fn(model,feed_data,"application/json","")
+if __name__ == "__main__":
+    model=model_fn("/home/ubuntu/yolo7-cctv-deployment-aws/")
+    feed_data_dict={"input_location":"s3://test-vod-v120-source71e471f1-5vcytwlc3m1b/test-videos/20200616_VB_trim.mp4","output_label_location":"s3://sm-ball-tracking-output-labels/async-inference/0fbbf919-885f-4d3b-8be9-fd55c89e164a/20200616_VB_trim.csv","output_video_location":"s3://sm-ball-tracking-output-blobs/async-inference/0fbbf919-885f-4d3b-8be9-fd55c89e164a/20200616_VB_trim.mp4"}
+    feed_data=json.dumps(feed_data_dict)
+    transform_fn(model,feed_data,"application/json","")
     
     
     
