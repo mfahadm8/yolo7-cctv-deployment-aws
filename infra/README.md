@@ -1,4 +1,4 @@
-# Yolo7 Sagemaker Inference Endpoint 
+# Part 2: Yolo7 Https Sagemaker Inference Endpoint 
 
 ## Prerequisites
 
