@@ -1,8 +1,8 @@
-# Yolo7 Sagemaker Inference Endpoint 
+# Part 2: Yolo7 Https Sagemaker Inference Endpoint 
 
 ## Prerequisites
 
-To deploy the https endpoint alongside microservice, you will need to have AWS SAM CLI and python installed. If you haven't installed it yet, follow the instructions below.
+To deploy the https endpoint for sagemaker inference, you will need to have AWS SAM CLI and python installed. If you haven't installed it yet, follow the instructions below.
 
 ### Installing Dependencies
 
@@ -21,9 +21,12 @@ cd scripts
 ```
 Note: You must pass this password in your headers to the api call with header name: `Auth-Pass`
 
-3. Open the `template.yaml` file and update the following Parameter in as per your requirements:
-    - `REDIRECT_URL`: Set it to the desired website link. 
-4. The default region of deployment is set to be `us-east-1` in samconfig.toml. Please change that as required.
+3. Open the `template.yaml` file and update the following Parameter in as per your requirements, I have specified the default values but in case we want to change.
+    - `OutputVideoBucketName`: The bucket where output videos are stored. The default bucket name is `sm-ball-tracking-output-blobs`. 
+    - `SageMakerEndpointName`: The Name of Sagemaker Endpoint ( you specify in the sagemaker.ipynb file to be deployed). The default bucket name is `ball-tracking-v7`. 
+    - `InputBucketName`: The bucket where the input request payload(json) would be stored. Please not that this is not the bucket for input. The default bucket name is `sm-ball-tracking-inputs`. 
+    - `OutputLabelsBucketName`: The bucket where output labels for inference are stored. The default bucket name is `sm-ball-tracking-output-labels`. 
+4. The default region of deployment is set to be default region of your aws cli profile. If you want to deploy in some other region add  `region = "us-east-1"` in samconfig.toml. Please change that as required.
 5. Build and deploy the application using the following command:
 ```bash
 sam sync
