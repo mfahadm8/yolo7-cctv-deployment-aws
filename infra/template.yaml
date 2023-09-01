@@ -14,9 +14,9 @@ Parameters:
     Type: String
     Default: "sm-ball-tracking-output-blobs"
 
-  InputVideoFilesBucket:
+  InputVideoFilesBucketName:
     Type: String
-    Default: "sm-ball-tracking-output-blobs"
+    Default: "sm-ball-tracking-input-blobs"
 
   InputBucketName:
     Type: String
@@ -31,6 +31,21 @@ Globals:
     OpenApiVersion: 3.0.1
 
 Resources:
+
+  OutputLabelsBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      BucketName: !Ref OutputLabelsBucketName
+
+  InputVideoFilesBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      BucketName: !Ref InputVideoFilesBucketName
+
   ApiAuthorizerLambda:
     Type: AWS::Lambda::Function
     Properties:
@@ -292,7 +307,7 @@ Resources:
         S3Event:
           Type: S3
           Properties:
-            Bucket: !Ref OutputLabelsBucketName
+            Bucket: !Ref OutputLabelsBucket
             Events: s3:ObjectCreated:*
             Filter:
               S3Key:

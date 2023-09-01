@@ -38,7 +38,6 @@ ifeq ($(OS), Windows_NT)
 else
 	cp "$(mkfile_dir)src/NewVideoFileUploadTriggerLambda/index.py" "$(ARTIFACTS_DIR)"
 endif
-	pip install -r "$(mkfile_dir)src/NewVideoFileUploadTriggerLambda/requirements.txt" -t "$(ARTIFACTS_DIR)"
 
 build-ApiAuthorizerLambda:
 ifeq ($(OS), Windows_NT)

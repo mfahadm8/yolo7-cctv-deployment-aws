@@ -1,0 +1,313 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Parameters:
+  ApiAuthPasswordParamName:
+    Type: String
+    Default: API_AUTH_PASSWORD
+  OutputLabelsBucketName:
+    Type: String
+    Default: sm-ball-tracking-output-labels
+  OutputVideoBucketName:
+    Type: String
+    Default: sm-ball-tracking-output-blobs
+  InputVideoFilesBucketName:
+    Type: String
+    Default: sm-ball-tracking-input-blobs
+  InputBucketName:
+    Type: String
+    Default: sm-ball-tracking-inputs
+  SageMakerEndpointName:
+    Type: String
+    Default: ball-tracking-v7
+Globals:
+  Api:
+    OpenApiVersion: 3.0.1
+Resources:
+  OutputLabelsBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      BucketName:
+        Ref: OutputLabelsBucketName
+  InputVideoFilesBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      BucketName:
+        Ref: InputVideoFilesBucketName
+        
+  ApiAuthorizerLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: ApiAuthorizerLambda
+      Handler: index.lambda_handler
+      Runtime: python3.8
+      MemorySize: 128
+      Environment:
+        Variables:
+          PASSWORD_PARAM_NAME:
+            Ref: ApiAuthPasswordParamName
+      Role:
+        Fn::GetAtt:
+        - ApiAuthorizerLambdaRole
+        - Arn
+      Timeout: 600
+      Code:
+        S3Bucket: sm-ball-tracking-inputs
+        S3Key: c385de5b06603c34c25911f7d9d003f0
+    Metadata:
+      BuildMethod: makefile
+  ApiGwAccountConfig:
+    Type: AWS::ApiGateway::Account
+    Properties:
+      CloudWatchRoleArn:
+        Fn::GetAtt:
+        - ApiGatewayLoggingRole
+        - Arn
+  ApiGatewayLoggingRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service:
+            - apigateway.amazonaws.com
+          Action: sts:AssumeRole
+      Path: /
+      ManagedPolicyArns:
+      - Fn::Sub: arn:${AWS::Partition}:iam::aws:policy/service-role/AmazonAPIGatewayPushToCloudWatchLogs
+  AWSApiGateway:
+    Type: AWS::Serverless::Api
+    Properties:
+      Name: ApiGateway
+      StageName: prod
+      MethodSettings:
+      - LoggingLevel: INFO
+        ResourcePath: /*
+        HttpMethod: '*'
+      Auth:
+        ApiKeyRequired: true
+        Authorizers:
+          ApiAuthorizer:
+            FunctionPayloadType: TOKEN
+            FunctionArn:
+              Fn::GetAtt:
+              - ApiAuthorizerLambda
+              - Arn
+            Identity:
+              Header: Api-Pass
+        DefaultAuthorizer: ApiAuthorizer
+        UsagePlan:
+          CreateUsagePlan: SHARED
+          Description: Usage plan for this API
+          Quota:
+            Limit: 10000
+            Period: MONTH
+          Throttle:
+            BurstLimit: 100
+            RateLimit: 200
+      ApiKeySourceType: HEADER
+  ApiAuthorizerLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service:
+            - lambda.amazonaws.com
+          Action:
+          - sts:AssumeRole
+      Path: /
+      Policies:
+      - PolicyName: Lambda_Permissions
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+          - Effect: Allow
+            Action:
+            - logs:CreateLogGroup
+            - logs:CreateLogStream
+            - logs:PutLogEvents
+            - logs:DescribeLogGroups
+            Resource:
+              Fn::Sub: arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:*
+          - Effect: Allow
+            Action:
+            - ssm:GetParameter
+            Resource:
+              Fn::Sub: arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${ApiAuthPasswordParamName}
+          - Effect: Allow
+            Action:
+            - kms:Decrypt
+            Resource:
+              Fn::Sub: arn:${AWS::Partition}:kms:${AWS::Region}:${AWS::AccountId}:alias/aws/ssm
+  SagemakerEndpointMediatorLambda:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: SagemakerEndpointMediatorLambda
+      Handler: index.lambda_handler
+      Runtime: python3.9
+      MemorySize: 128
+      Timeout: 600
+      CodeUri: s3://sm-ball-tracking-inputs/c385de5b06603c34c25911f7d9d003f0
+      Layers:
+      - Ref: LambdaLayerPymongo
+      Role:
+        Fn::GetAtt:
+        - SagemakerEndpointMediatorLambdaRole
+        - Arn
+      Environment:
+        Variables:
+          LABELS_BUCKET:
+            Ref: OutputLabelsBucketName
+          VIDEO_BUCKET:
+            Ref: OutputVideoBucketName
+          INPUT_BUCKET:
+            Ref: InputBucketName
+          SAGEMAKER_ENDPOINT_NAME:
+            Ref: SageMakerEndpointName
+      Events:
+        ApiEvent:
+          Type: Api
+          Properties:
+            Path: /
+            Method: post
+            RestApiId:
+              Ref: AWSApiGateway
+    Metadata:
+      BuildMethod: makefile
+  LambdaLayerPymongo:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+      LayerName:
+        Fn::Sub: Layer-pymongo
+      Description: Layer for Pymongo and RDS PEM file
+      ContentUri: s3://sm-ball-tracking-inputs/210ae60517d9f17faeb2f608a275ee24
+      CompatibleRuntimes:
+      - python3.9
+      LicenseInfo: MIT
+      RetentionPolicy: Retain
+  SagemakerEndpointMediatorLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service:
+            - lambda.amazonaws.com
+          Action:
+          - sts:AssumeRole
+      Path: /
+      Policies:
+      - PolicyName: Lambda_Permissions
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+          - Effect: Allow
+            Action:
+            - sagemaker:InvokeEndpointAsync
+            - s3:*
+            - lambda:*
+            Resource: '*'
+          - Effect: Allow
+            Action:
+            - logs:CreateLogGroup
+            - logs:CreateLogStream
+            - logs:PutLogEvents
+            - logs:DescribeLogGroups
+            Resource:
+              Fn::Sub: arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:*
+  NewVideoFileUploadTriggerLambda:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: NewVideoFileUploadTriggerLambda
+      Handler: index.lambda_handler
+      Runtime: python3.9
+      MemorySize: 128
+      Timeout: 600
+      CodeUri: s3://sm-ball-tracking-inputs/c385de5b06603c34c25911f7d9d003f0
+      Role:
+        Fn::GetAtt:
+        - SagemakerEndpointMediatorLambdaRole
+        - Arn
+      Events:
+        S3Event:
+          Type: S3
+          Properties:
+            Bucket:
+              Ref: InputVideoFilesBucket
+            Events: s3:ObjectCreated:*
+            Filter:
+              S3Key:
+                Rules:
+                - Name: suffix
+                  Value: .mp4
+                - Name: suffix
+                  Value: .MOV
+    Metadata:
+      BuildMethod: makefile
+  PostInferenceDocumentDbUpdateLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service:
+            - lambda.amazonaws.com
+          Action:
+          - sts:AssumeRole
+      Path: /
+      Policies:
+      - PolicyName: Lambda_Permissions
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+          - Effect: Allow
+            Action:
+            - secretsmanager:*
+            Resource: '*'
+          - Effect: Allow
+            Action:
+            - logs:CreateLogGroup
+            - logs:CreateLogStream
+            - logs:PutLogEvents
+            - logs:DescribeLogGroups
+            Resource:
+              Fn::Sub: arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:*
+  PostInferenceDocumentDbUpdateLambda:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: PostInferenceDocumentDbUpdateLambda
+      Handler: index.lambda_handler
+      Runtime: python3.9
+      MemorySize: 128
+      Timeout: 600
+      CodeUri: s3://sm-ball-tracking-inputs/c385de5b06603c34c25911f7d9d003f0
+      Role:
+        Fn::GetAtt:
+        - PostInferenceDocumentDbUpdateLambdaRole
+        - Arn
+      Events:
+        S3Event:
+          Type: S3
+          Properties:
+            Bucket:
+              Ref: OutputLabelsBucket
+            Events: s3:ObjectCreated:*
+            Filter:
+              S3Key:
+                Rules:
+                - Name: prefix
+                  Value: async-inference
+    Metadata:
+      BuildMethod: makefile
