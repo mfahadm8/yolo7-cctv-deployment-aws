@@ -83,8 +83,12 @@ def update_db(input_data):
     
 def lambda_handler(event, context):
     print(event)
-    body=json.loads(event.get("body"))
-    input_video_uri=body.get("input_s3_uri","s3://lightsketch-models-188775091215/models/20200616_VB_trim.mp4")
+    input_video_uri=None
+    if "input_s3_uri" in event:
+        input_video_uri=event.get("input_s3_uri","s3://lightsketch-models-188775091215/models/20200616_VB_trim.mp4")
+    else:
+        body=json.loads(event.get("body"))
+        input_video_uri=body.get("input_s3_uri","s3://lightsketch-models-188775091215/models/20200616_VB_trim.mp4")
     s3_input_path_without_prefix = input_video_uri[len("s3://"):]
     input_bucket_name, input_key = s3_input_path_without_prefix.split('/', 1)
     input_base_file = os.path.basename(input_key)
