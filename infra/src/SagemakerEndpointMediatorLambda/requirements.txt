@@ -2,3 +2,4 @@ sagemaker==2.149.0
 jsonschema==4.17.3 
 importlib-resources==6.0.1
 numpy==1.21.0
+pymongo

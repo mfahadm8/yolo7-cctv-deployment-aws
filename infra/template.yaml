@@ -146,6 +146,8 @@ Resources:
       MemorySize: 128
       Timeout: 600
       CodeUri: .
+      Layers:
+        - !Ref LambdaLayerPymongo
       Role:
         Fn::GetAtt:
           - SagemakerEndpointMediatorLambdaRole
@@ -166,6 +168,17 @@ Resources:
               Ref: AWSApiGateway
     Metadata:
       BuildMethod: makefile
+      
+  LambdaLayerPymongo:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+      LayerName: !Sub Layer-pymongo
+      Description: Layer for Pymongo and RDS PEM file
+      ContentUri: layer-pymongo.zip
+      CompatibleRuntimes:
+        - python3.9
+      LicenseInfo: 'MIT'
+      RetentionPolicy: Retain
 
   SagemakerEndpointMediatorLambdaRole:
     Type: AWS::IAM::Role

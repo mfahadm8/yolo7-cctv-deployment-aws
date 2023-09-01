@@ -40,7 +40,7 @@ def model_fn(model_dir):
     global stride
     device = get_device()
     logger.info(">>> Device is '%s'.." % device)
-    model = attempt_load(model_dir + '/yolov7-20230427.pt', map_location=torch.device(device))
+    model = attempt_load(model_dir + '/yolov7.pt', map_location=torch.device(device))
     logger.info(">>> Model Type!..")
     logger.info(type(model))
     logger.info(">>> Model loaded!..")
@@ -279,11 +279,11 @@ def detect(video_file,model,output_label_location,output_video_location):
     print(f'Done. ({time.time() - t0:.3f}s)')
 
 
-if __name__ == "__main__":
-    model=model_fn("/home/ubuntu/yolo7-cctv-deployment-aws/")
-    feed_data_dict={"input_location":"s3://test-vod-v120-source71e471f1-5vcytwlc3m1b/test-videos/20200616_VB_trim.mp4","output_label_location":"s3://sm-ball-tracking-output-labels/async-inference/0fbbf919-885f-4d3b-8be9-fd55c89e164a/20200616_VB_trim.csv","output_video_location":"s3://sm-ball-tracking-output-blobs/async-inference/0fbbf919-885f-4d3b-8be9-fd55c89e164a/20200616_VB_trim.mp4"}
-    feed_data=json.dumps(feed_data_dict)
-    transform_fn(model,feed_data,"application/json","")
+# if __name__ == "__main__":
+#     model=model_fn("/home/ubuntu/yolo7-cctv-deployment-aws/")
+#     feed_data_dict={"input_location":"s3://test-vod-v120-source71e471f1-5vcytwlc3m1b/test-videos/20200616_VB_trim.mp4","output_label_location":"s3://sm-ball-tracking-output-labels/async-inference/0fbbf919-885f-4d3b-8be9-fd55c89e164a/20200616_VB_trim.csv","output_video_location":"s3://sm-ball-tracking-output-blobs/async-inference/0fbbf919-885f-4d3b-8be9-fd55c89e164a/20200616_VB_trim.mp4"}
+#     feed_data=json.dumps(feed_data_dict)
+#     transform_fn(model,feed_data,"application/json","")
     
     
     
