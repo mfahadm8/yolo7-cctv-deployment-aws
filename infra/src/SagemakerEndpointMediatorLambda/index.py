@@ -11,6 +11,7 @@ import uuid
 import pymongo
 from urllib.parse import quote_plus
 
+pem_locator ='/opt/python/global-bundle.pem'
 LABELS_BUCKET=os.environ.get("LABELS_BUCKET")
 VIDEO_BUCKET=os.environ.get("VIDEO_BUCKET")
 INPUT_BUCKET=os.environ.get("INPUT_BUCKET")
@@ -20,7 +21,7 @@ ssm_client=boto3.client("ssm")
 sm_session = sagemaker.session.Session()
 predictor=Predictor(endpoint_name=SAGEMAKER_ENDPOINT_NAME,sagemaker_session=sm_session,serializer=JSONSerializer())
 async_predictor = AsyncPredictor(predictor=predictor)
-
+db_client=None
 def get_credentials():
     """Retrieve credentials from the Secrets Manager service."""
     boto_session = boto3.session.Session()
@@ -109,5 +110,3 @@ def lambda_handler(event, context):
         })
     }
     
-    
-update_db({"test":"test"})
