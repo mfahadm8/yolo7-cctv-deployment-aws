@@ -73,8 +73,6 @@ def lambda_handler(event, context):
     update_db(event)
     return {
         'statusCode': 200,
-        'body': json.dumps({
-            "Db Update Successful"
-        })
+        'body': "Db Update Successful"
     }
     
