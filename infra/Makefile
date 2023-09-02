@@ -8,6 +8,11 @@ PYTHONUSERBASE=resources/python
 
 all: layer-pymongo.zip
 
+package:
+	aws cloudformation package --template-file template.yaml --s3-bucket sm-ball-tracking-inputs --output-template-file packaged-template.yaml
+
+import:
+	aws cloudformation create-change-set --stack-name SagemakerEndpoint-Stack --template-body file://packaged-template.yaml   --capabilities CAPABILITY_IAM CAPABILITY_AUTO_EXPAND   --change-set-type IMPORT   --change-set-name MyImportChangeSet --resources-to-import "file://import-resources.json" --debug
 layer-pymongo.zip:
 	
 	mkdir -p $(PYTHONUSERBASE) 

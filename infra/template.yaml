@@ -32,12 +32,12 @@ Globals:
 
 Resources:
 
-  OutputLabelsBucket:
-    Type: AWS::S3::Bucket
-    DeletionPolicy: Retain
-    UpdateReplacePolicy: Retain
-    Properties:
-      BucketName: !Ref OutputLabelsBucketName
+  # OutputLabelsBucket:
+  #   Type: AWS::S3::Bucket
+  #   DeletionPolicy: Retain
+  #   UpdateReplacePolicy: Retain
+  #   Properties:
+  #     BucketName: !Ref Output/home/ubuntu/yolo7-cctv-deployment-aws/codeLabelsBucketName
 
   InputVideoFilesBucket:
     Type: AWS::S3::Bucket
@@ -290,29 +290,29 @@ Resources:
                   Fn::Sub: arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:*
 
 
-  PostInferenceDocumentDbUpdateLambda:
-    Type: AWS::Serverless::Function
-    Properties:
-      FunctionName: "PostInferenceDocumentDbUpdateLambda"
-      Handler: index.lambda_handler
-      Runtime: python3.9
-      MemorySize: 128
-      Timeout: 600
-      CodeUri: .
-      Role:
-        Fn::GetAtt:
-          - PostInferenceDocumentDbUpdateLambdaRole
-          - Arn
-      Events:
-        S3Event:
-          Type: S3
-          Properties:
-            Bucket: !Ref OutputLabelsBucket
-            Events: s3:ObjectCreated:*
-            Filter:
-              S3Key:
-                Rules:
-                - Name: prefix    
-                  Value: async-inference
+  # PostInferenceDocumentDbUpdateLambda:
+  #   Type: AWS::Serverless::Function
+  #   Properties:
+  #     FunctionName: "PostInferenceDocumentDbUpdateLambda"
+  #     Handler: index.lambda_handler
+  #     Runtime: python3.9
+  #     MemorySize: 128
+  #     Timeout: 600
+  #     CodeUri: .
+  #     Role:
+  #       Fn::GetAtt:
+  #         - PostInferenceDocumentDbUpdateLambdaRole
+  #         - Arn
+      # Events:
+      #   S3Event:
+      #     Type: S3
+      #     Properties:
+      #       Bucket: !Ref OutputLabelsBucket
+      #       Events: s3:ObjectCreated:*
+      #       Filter:
+      #         S3Key:
+      #           Rules:
+      #           - Name: prefix    
+      #             Value: async-inference
     Metadata:
       BuildMethod: makefile

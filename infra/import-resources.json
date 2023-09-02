@@ -1,0 +1,16 @@
+[
+    {
+        "ResourceType": "AWS::S3::Bucket",
+        "LogicalResourceId": "OutputLabelsBucket",
+        "ResourceIdentifier": {
+            "BucketName": "sm-ball-tracking-output-labels"
+        }
+    },
+    {
+        "ResourceType": "AWS::S3::Bucket",
+        "LogicalResourceId": "InputVideoFilesBucket",
+        "ResourceIdentifier": {
+            "BucketName": "sm-ball-tracking-input-blobs"
+        }
+    }
+]
