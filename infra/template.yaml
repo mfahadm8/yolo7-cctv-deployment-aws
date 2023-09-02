@@ -26,6 +26,16 @@ Parameters:
     Type: String
     Default: "ball-tracking-v7"
 
+  DocDBVPCSubnet:
+    Type: AWS::EC2::Subnet::Id
+    Description: VPC Subnet with connectivity to Amazon DocumentDB cluster
+    Default: "subnet-0a3d43fa863e49f93"
+    
+  DocDBSecurityGroup:
+    Type: AWS::EC2::SecurityGroup::Id
+    Description: Security group with access to Amazon DocumentDB from within the VPC
+    Default: "sg-0576489ce418abb67"
+    
 Globals:
   Api:
     OpenApiVersion: 3.0.1
@@ -165,6 +175,11 @@ Resources:
         Fn::GetAtt:
           - SagemakerEndpointMediatorLambdaRole
           - Arn
+      VpcConfig: 
+        SecurityGroupIds: 
+          - !Ref DocDBSecurityGroup
+        SubnetIds: 
+          - !Ref DocDBVPCSubnet
       Environment:
         Variables:
           LABELS_BUCKET: !Ref OutputLabelsBucketName
