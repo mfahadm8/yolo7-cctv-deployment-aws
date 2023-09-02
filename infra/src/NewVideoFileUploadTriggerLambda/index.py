@@ -23,6 +23,7 @@ def lambda_handler(events, context):
                     InvocationType='RequestResponse', 
                     Payload=json.dumps(input_data)  
                 )
+                print(response)
             else:
                 return {
                     'statusCode': 200,
