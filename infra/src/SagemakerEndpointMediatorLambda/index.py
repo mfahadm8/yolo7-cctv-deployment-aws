@@ -54,6 +54,7 @@ def get_db_client():
                     username=secret_username,
                     password=secret_password,
                     authSource='admin')
+            print('Initialized DB Client!')
         except Exception as e:
             print('Failed to create new DocumentDB client: {}'.format(e))
             raise
@@ -68,8 +69,8 @@ def update_db(input_data):
     # Connect to the MongoDB with SSL
     client = get_db_client()
     # Select the database and collection
-    db = client.dbname
-    collection = db.Tracked
+    db = client["db"]
+    collection = db["Tracked"]
 
     # Insert the data into the collection
     inserted_document = collection.insert_one(input_data)

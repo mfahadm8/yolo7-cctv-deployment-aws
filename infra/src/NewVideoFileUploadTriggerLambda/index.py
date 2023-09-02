@@ -4,7 +4,7 @@ import boto3
 import urllib
 lambda_client = boto3.client('lambda')
 
-def handler(events, context):
+def lambda_handler(events, context):
     print(events)
     if "Records" in events:
         for record in events["Records"]:

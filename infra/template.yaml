@@ -216,6 +216,8 @@ Resources:
                   - sagemaker:InvokeEndpointAsync 
                   - s3:*
                   - lambda:*
+                  - secretsmanager:*
+                  - ec2:*
                 Resource: "*"
               - Effect: Allow
                 Action:
