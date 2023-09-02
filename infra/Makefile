@@ -29,6 +29,15 @@ else
 endif
 	pip install -r "$(mkfile_dir)src/SagemakerEndpointMediatorLambda/requirements.txt" -t "$(ARTIFACTS_DIR)"
 
+build-DbUpdateLambda: 
+ifeq ($(OS), Windows_NT)
+	copy "$(mkfile_dir)src/DbUpdateLambda/index.py" "$(ARTIFACTS_DIR)"
+else
+	cp "$(mkfile_dir)src/DbUpdateLambda/index.py" "$(ARTIFACTS_DIR)"
+endif
+	pip install -r "$(mkfile_dir)src/DbUpdateLambda/requirements.txt" -t "$(ARTIFACTS_DIR)"
+
+
 build-PostInferenceDocumentDbUpdateLambda: 
 ifeq ($(OS), Windows_NT)
 	copy "$(mkfile_dir)src/PostInferenceDocumentDbUpdateLambda/index.py" "$(ARTIFACTS_DIR)"

@@ -169,17 +169,10 @@ Resources:
       MemorySize: 128
       Timeout: 600
       CodeUri: .
-      Layers:
-        - !Ref LambdaLayerPymongo
       Role:
         Fn::GetAtt:
           - SagemakerEndpointMediatorLambdaRole
           - Arn
-      VpcConfig: 
-        SecurityGroupIds: 
-          - !Ref DocDBSecurityGroup
-        SubnetIds: 
-          - !Ref DocDBVPCSubnet
       Environment:
         Variables:
           LABELS_BUCKET: !Ref OutputLabelsBucketName
@@ -196,7 +189,31 @@ Resources:
               Ref: AWSApiGateway
     Metadata:
       BuildMethod: makefile
-      
+  
+  DbUpdateLambda:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: "DbUpdateLambda"
+      Handler: index.lambda_handler
+      Runtime: python3.9
+      MemorySize: 128
+      Timeout: 600
+      CodeUri: .
+      Layers:
+        - !Ref LambdaLayerPymongo
+      Role:
+        Fn::GetAtt:
+          - SagemakerEndpointMediatorLambdaRole
+          - Arn
+      VpcConfig: 
+        SecurityGroupIds: 
+          - !Ref DocDBSecurityGroup
+        SubnetIds: 
+          - !Ref DocDBVPCSubnet
+    Metadata:
+      BuildMethod: makefile
+
+
   LambdaLayerPymongo:
     Type: AWS::Serverless::LayerVersion
     Properties:
