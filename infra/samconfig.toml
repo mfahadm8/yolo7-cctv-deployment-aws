@@ -6,4 +6,4 @@ stack_name = "SagemakerEndpoint-Stack"
 template = "template.yaml"
 profile="default"
 confirm_changeset = true
-capabilities="CAPABILITY_IAM CAPABILITY_AUTO_EXPAND"
+capabilities="CAPABILITY_IAM CAPABILITY_NAMED_IAM CAPABILITY_AUTO_EXPAND"

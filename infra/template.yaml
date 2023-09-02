@@ -190,6 +190,34 @@ Resources:
     Metadata:
       BuildMethod: makefile
   
+
+  DbUpdateLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          -
+            Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole
+        - arn:aws:iam::aws:policy/AWSLambdaExecute
+      Policies:
+        - PolicyName: DocumentDBSecret
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - secretsmanager:GetSecretValue
+                Resource: '*'
+      RoleName: DocDBUpdate-Role-Lambda
+
   DbUpdateLambda:
     Type: AWS::Serverless::Function
     Properties:
@@ -203,7 +231,7 @@ Resources:
         - !Ref LambdaLayerPymongo
       Role:
         Fn::GetAtt:
-          - SagemakerEndpointMediatorLambdaRole
+          - DbUpdateLambdaRole
           - Arn
       VpcConfig: 
         SecurityGroupIds: 
