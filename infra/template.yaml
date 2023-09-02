@@ -41,8 +41,6 @@ Resources:
 
   InputVideoFilesBucket:
     Type: AWS::S3::Bucket
-    DeletionPolicy: Retain
-    UpdateReplacePolicy: Retain
     Properties:
       BucketName: !Ref InputVideoFilesBucketName
 
@@ -247,13 +245,6 @@ Resources:
           Properties:
             Bucket: !Ref InputVideoFilesBucket
             Events: s3:ObjectCreated:*
-            Filter:
-              S3Key:
-                Rules:
-                - Name: suffix
-                  Value: .mp4
-                - Name: suffix
-                  Value: .MOV
     Metadata:
       BuildMethod: makefile
 
