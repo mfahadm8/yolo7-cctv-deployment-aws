@@ -10,7 +10,7 @@ def lambda_handler(events, context):
         for record in events["Records"]:
             bucket_name=urllib.parse.unquote(record["s3"]["bucket"]["name"])
             s3_file_path=urllib.parse.unquote(record["s3"]["object"]["key"])
-            if s3_file_path.ends_with(".mp4") or s3_file_path.ends_with(".MOV"):
+            if s3_file_path.endswith(".mp4") or s3_file_path.endswith(".MOV"):
                 s3_input_uri=f"s3://{bucket_name}/{s3_file_path}"
                 input_data = {
                     'input_s3_uri': s3_input_uri,
@@ -23,7 +23,9 @@ def lambda_handler(events, context):
                     InvocationType='RequestResponse', 
                     Payload=json.dumps(input_data)  
                 )
-                print(response)
+                response_payload = json.loads(response['Payload'].read().decode("utf-8"))
+
+                print ("response_payload: {}".format(response_payload))
             else:
                 return {
                     'statusCode': 200,
