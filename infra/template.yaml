@@ -34,7 +34,7 @@ Parameters:
   DocDBSecurityGroup:
     Type: AWS::EC2::SecurityGroup::Id
     Description: Security group with access to Amazon DocumentDB from within the VPC
-    Default: "sg-0576489ce418abb67"
+    Default: "subnet-014ee813c818c622d"
     
 Globals:
   Api:
