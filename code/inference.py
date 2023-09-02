@@ -91,7 +91,7 @@ def detect(video_file,model,output_label_location,output_video_location):
     agnostic_nms=False
     classes=None
     iou_thres=0.45
-    conf_thres=0.0001
+    conf_thres=0.25
     save_conf=True
     track_thresh = 0.6
     track_buffer = 30
