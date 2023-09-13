@@ -5,7 +5,7 @@ Parameters:
   ApiAuthPasswordParamName:
     Type: String
     Default: "API_AUTH_PASSWORD"
-    
+
   OutputLabelsBucketName:
     Type: String
     Default: "sm-ball-tracking-output-labels"
@@ -30,24 +30,21 @@ Parameters:
     Type: AWS::EC2::Subnet::Id
     Description: VPC Subnet with connectivity to Amazon DocumentDB cluster
     Default: "subnet-0a3d43fa863e49f93"
-    
+
   DocDBSecurityGroup:
     Type: AWS::EC2::SecurityGroup::Id
     Description: Security group with access to Amazon DocumentDB from within the VPC
     Default: "subnet-014ee813c818c622d"
-    
+
 Globals:
   Api:
     OpenApiVersion: 3.0.1
 
 Resources:
-
-  # OutputLabelsBucket:
-  #   Type: AWS::S3::Bucket
-  #   DeletionPolicy: Retain
-  #   UpdateReplacePolicy: Retain
-  #   Properties:
-  #     BucketName: !Ref Output/home/ubuntu/yolo7-cctv-deployment-aws/codeLabelsBucketName
+  OutputLabelsBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Ref OutputLabelsBucketName
 
   InputVideoFilesBucket:
     Type: AWS::S3::Bucket
@@ -189,7 +186,6 @@ Resources:
               Ref: AWSApiGateway
     Metadata:
       BuildMethod: makefile
-  
 
   DbUpdateLambdaRole:
     Type: AWS::IAM::Role
@@ -197,8 +193,7 @@ Resources:
       AssumeRolePolicyDocument:
         Version: "2012-10-17"
         Statement:
-          -
-            Effect: Allow
+          - Effect: Allow
             Principal:
               Service:
                 - lambda.amazonaws.com
@@ -210,12 +205,12 @@ Resources:
       Policies:
         - PolicyName: DocumentDBSecret
           PolicyDocument:
-            Version: '2012-10-17'
+            Version: "2012-10-17"
             Statement:
               - Effect: Allow
                 Action:
                   - secretsmanager:GetSecretValue
-                Resource: '*'
+                Resource: "*"
       RoleName: DocDBUpdate-Role-Lambda
 
   DbUpdateLambda:
@@ -233,14 +228,13 @@ Resources:
         Fn::GetAtt:
           - DbUpdateLambdaRole
           - Arn
-      VpcConfig: 
-        SecurityGroupIds: 
+      VpcConfig:
+        SecurityGroupIds:
           - !Ref DocDBSecurityGroup
-        SubnetIds: 
+        SubnetIds:
           - !Ref DocDBVPCSubnet
     Metadata:
       BuildMethod: makefile
-
 
   LambdaLayerPymongo:
     Type: AWS::Serverless::LayerVersion
@@ -250,7 +244,7 @@ Resources:
       ContentUri: layer-pymongo.zip
       CompatibleRuntimes:
         - python3.9
-      LicenseInfo: 'MIT'
+      LicenseInfo: "MIT"
       RetentionPolicy: Retain
 
   SagemakerEndpointMediatorLambdaRole:
@@ -273,7 +267,7 @@ Resources:
             Statement:
               - Effect: Allow
                 Action:
-                  - sagemaker:InvokeEndpointAsync 
+                  - sagemaker:InvokeEndpointAsync
                   - s3:*
                   - lambda:*
                   - secretsmanager:*
@@ -310,62 +304,29 @@ Resources:
     Metadata:
       BuildMethod: makefile
 
-
-  PostInferenceDocumentDbUpdateLambdaRole:
-    Type: AWS::IAM::Role
+  PostInferenceDocumentDbUpdateLambda:
+    Type: AWS::Serverless::Function
     Properties:
-      AssumeRolePolicyDocument:
-        Version: "2012-10-17"
-        Statement:
-          - Effect: Allow
-            Principal:
-              Service:
-                - lambda.amazonaws.com
-            Action:
-              - sts:AssumeRole
-      Path: /
-      Policies:
-        - PolicyName: Lambda_Permissions
-          PolicyDocument:
-            Version: "2012-10-17"
-            Statement:
-              - Effect: Allow
-                Action:
-                  - secretsmanager:*
-                Resource: "*"
-              - Effect: Allow
-                Action:
-                  - logs:CreateLogGroup
-                  - logs:CreateLogStream
-                  - logs:PutLogEvents
-                  - logs:DescribeLogGroups
-                Resource:
-                  Fn::Sub: arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:*
-
-
-  # PostInferenceDocumentDbUpdateLambda:
-  #   Type: AWS::Serverless::Function
-  #   Properties:
-  #     FunctionName: "PostInferenceDocumentDbUpdateLambda"
-  #     Handler: index.lambda_handler
-  #     Runtime: python3.9
-  #     MemorySize: 128
-  #     Timeout: 600
-  #     CodeUri: .
-  #     Role:
-  #       Fn::GetAtt:
-  #         - PostInferenceDocumentDbUpdateLambdaRole
-  #         - Arn
-      # Events:
-      #   S3Event:
-      #     Type: S3
-      #     Properties:
-      #       Bucket: !Ref OutputLabelsBucket
-      #       Events: s3:ObjectCreated:*
-      #       Filter:
-      #         S3Key:
-      #           Rules:
-      #           - Name: prefix    
-      #             Value: async-inference
+      FunctionName: "PostInferenceDocumentDbUpdateLambda"
+      Handler: index.lambda_handler
+      Runtime: python3.9
+      MemorySize: 128
+      Timeout: 600
+      CodeUri: .
+      Role:
+        Fn::GetAtt:
+          - SagemakerEndpointMediatorLambdaRole
+          - Arn
+      Events:
+        S3Event:
+          Type: S3
+          Properties:
+            Bucket: !Ref OutputLabelsBucket
+            Events: s3:ObjectCreated:*
+            Filter:
+              S3Key:
+                Rules:
+                  - Name: prefix
+                    Value: async-inference
     Metadata:
       BuildMethod: makefile

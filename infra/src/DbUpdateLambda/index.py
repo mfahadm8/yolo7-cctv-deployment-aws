@@ -68,9 +68,45 @@ def update_db(input_data):
     else:
         print("Document insertion failed.")
     
+    
+def mark_complete_db_item(inference_id):
+    client = get_db_client()
+    # Select the database and collection
+    db = client["db"]
+    collection = db["Tracked"]
+
+    query = {"inference_id": inference_id}
+
+    # Execute the query and retrieve the result
+    result = collection.find_one(query)
+    print(result)
+    # Check if the query returned a document
+    if result:
+        # Add the "status" field with the value "Completed"
+        update = {"$set": {"status": "Completed"}}
+        
+        # Update the document with the new field
+        update_result = collection.update_one(query, update)
+        
+        # Check if the update was acknowledged
+        if update_result.acknowledged:
+            print("Document updated successfully.")
+        else:
+            print("Update was not acknowledged by the server.")
+        
+        # Print the updated document
+        updated_result = collection.find_one(query)
+        print(updated_result)
+    else:
+        print("No document found with the specified inference_id.")
+        
 def lambda_handler(event, context):
     print(event)
-    update_db(event)
+    if 'requestType' in event:
+        inference_id=event['inference_id']
+        mark_complete_db_item(inference_id)
+    else:
+        update_db(event)
     return {
         'statusCode': 200,
         'body': "Db Update Successful"
