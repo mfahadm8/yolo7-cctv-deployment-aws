@@ -200,16 +200,15 @@ Resources:
             Action:
               - sts:AssumeRole
       ManagedPolicyArns:
-        - arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole
-        - arn:aws:iam::aws:policy/AWSLambdaExecute
+        - arn:aws:iam::aws:policy/AWSLambda_FullAccess
       Policies:
-        - PolicyName: DocumentDBSecret
+        - PolicyName: DynamodbUpdatePolicy
           PolicyDocument:
             Version: "2012-10-17"
             Statement:
               - Effect: Allow
                 Action:
-                  - secretsmanager:GetSecretValue
+                  - dynamodb:*
                 Resource: "*"
       RoleName: DocDBUpdate-Role-Lambda
 
@@ -222,8 +221,6 @@ Resources:
       MemorySize: 128
       Timeout: 600
       CodeUri: .
-      Layers:
-        - !Ref LambdaLayerPymongo
       Role:
         Fn::GetAtt:
           - DbUpdateLambdaRole
@@ -235,17 +232,6 @@ Resources:
           - !Ref DocDBVPCSubnet
     Metadata:
       BuildMethod: makefile
-
-  LambdaLayerPymongo:
-    Type: AWS::Serverless::LayerVersion
-    Properties:
-      LayerName: !Sub Layer-pymongo
-      Description: Layer for Pymongo and RDS PEM file
-      ContentUri: layer-pymongo.zip
-      CompatibleRuntimes:
-        - python3.9
-      LicenseInfo: "MIT"
-      RetentionPolicy: Retain
 
   SagemakerEndpointMediatorLambdaRole:
     Type: AWS::IAM::Role
