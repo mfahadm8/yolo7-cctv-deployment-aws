@@ -34,7 +34,7 @@ Parameters:
   DocDBSecurityGroup:
     Type: AWS::EC2::SecurityGroup::Id
     Description: Security group with access to Amazon DocumentDB from within the VPC
-    Default: "subnet-014ee813c818c622d"
+    Default: "sg-0576489ce418abb67"
     
 Globals:
   Api:
@@ -311,61 +311,3 @@ Resources:
       BuildMethod: makefile
 
 
-  PostInferenceDocumentDbUpdateLambdaRole:
-    Type: AWS::IAM::Role
-    Properties:
-      AssumeRolePolicyDocument:
-        Version: "2012-10-17"
-        Statement:
-          - Effect: Allow
-            Principal:
-              Service:
-                - lambda.amazonaws.com
-            Action:
-              - sts:AssumeRole
-      Path: /
-      Policies:
-        - PolicyName: Lambda_Permissions
-          PolicyDocument:
-            Version: "2012-10-17"
-            Statement:
-              - Effect: Allow
-                Action:
-                  - secretsmanager:*
-                Resource: "*"
-              - Effect: Allow
-                Action:
-                  - logs:CreateLogGroup
-                  - logs:CreateLogStream
-                  - logs:PutLogEvents
-                  - logs:DescribeLogGroups
-                Resource:
-                  Fn::Sub: arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:*
-
-
-  # PostInferenceDocumentDbUpdateLambda:
-  #   Type: AWS::Serverless::Function
-  #   Properties:
-  #     FunctionName: "PostInferenceDocumentDbUpdateLambda"
-  #     Handler: index.lambda_handler
-  #     Runtime: python3.9
-  #     MemorySize: 128
-  #     Timeout: 600
-  #     CodeUri: .
-  #     Role:
-  #       Fn::GetAtt:
-  #         - PostInferenceDocumentDbUpdateLambdaRole
-  #         - Arn
-      # Events:
-      #   S3Event:
-      #     Type: S3
-      #     Properties:
-      #       Bucket: !Ref OutputLabelsBucket
-      #       Events: s3:ObjectCreated:*
-      #       Filter:
-      #         S3Key:
-      #           Rules:
-      #           - Name: prefix    
-      #             Value: async-inference
-    Metadata:
-      BuildMethod: makefile
